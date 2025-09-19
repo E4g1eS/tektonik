@@ -1,0 +1,21 @@
+BasedOnStyle: Chromium
+
+ColumnLimit: 150
+
+IndentWidth: 4
+IndentAccessModifiers: false
+AccessModifierOffset: -2
+
+AlignAfterOpenBracket: AlwaysBreak
+AlignArrayOfStructures: Right
+
+BreakBeforeBraces: Allman
+
+PenaltyReturnTypeOnItsOwnLine: 10000
+PenaltyExcessCharacter: 100
+
+AllowShortEnumsOnASingleLine: true
+
+InsertNewlineAtEOF: true
+
+BinPackArguments: false
