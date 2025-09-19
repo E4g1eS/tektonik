@@ -13,17 +13,23 @@ target_sources(app
     source/main.cpp
 )
 
+target_include_directories(app PUBLIC "source/header")
 
-message("OWN_MODULES=${OWN_MODULES}")
-
-file(GLOB_RECURSE OWN_MODULE_INTERFACE_NAMES "source/module/*.cppm")
+file(GLOB_RECURSE OWN_MODULE_NAMES "source/module/*.cppm")
 target_sources(app
     PUBLIC
     FILE_SET own_modules TYPE CXX_MODULES FILES
-    ${OWN_MODULE_INTERFACE_NAMES}
+    ${OWN_MODULE_NAMES}
 )
 
-file(GLOB_RECURSE OWN_MODULE_IMPLEMENTATION_NAMES "source/implementation/*.cpp")
+file(GLOB_RECURSE OWN_HEADER_NAMES "source/header/*.hpp")
 target_sources(app
-    PUBLIC ${OWN_MODULE_IMPLEMENTATION_NAMES}
+    PUBLIC
+    FILE_SET own_headers TYPE HEADERS FILES
+    ${OWN_HEADER_NAMES}
 )
+
+file(GLOB_RECURSE OWN_IMPLEMENTATION_NAMES "source/implementation/*.cpp")
+target_sources(app PUBLIC ${OWN_IMPLEMENTATION_NAMES} )
+
+
