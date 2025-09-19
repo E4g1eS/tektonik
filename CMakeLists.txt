@@ -13,12 +13,17 @@ target_sources(app
     source/main.cpp
 )
 
-file(GLOB_RECURSE OWN_MODULES "source/module/*.cppm")
 
 message("OWN_MODULES=${OWN_MODULES}")
 
+file(GLOB_RECURSE OWN_MODULE_INTERFACE_NAMES "source/module/*.cppm")
 target_sources(app
     PUBLIC
-    FILE_SET all_my_modules TYPE CXX_MODULES FILES
-    ${OWN_MODULES}
+    FILE_SET own_modules TYPE CXX_MODULES FILES
+    ${OWN_MODULE_INTERFACE_NAMES}
+)
+
+file(GLOB_RECURSE OWN_MODULE_IMPLEMENTATION_NAMES "source/implementation/*.cpp")
+target_sources(app
+    PUBLIC ${OWN_MODULE_IMPLEMENTATION_NAMES}
 )
