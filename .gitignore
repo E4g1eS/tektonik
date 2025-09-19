@@ -7,6 +7,7 @@ out/
 .vscode/
 .vs/
 CMakeSettings.json
+*.pdb
 
 # CMake
 CMakeLists.txt.user
