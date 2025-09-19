@@ -1,7 +1,7 @@
-import std;
+import runtime;
 
 int main()
 {
-    std::cout << ">>> main() end <<<" << std::endl;
+    runtime::Runtime().Run();
     return 0;
 }
