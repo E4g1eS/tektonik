@@ -7,7 +7,8 @@ class App
 {
   public:
     void Init();
+
   private:
 };
 
-}
+}  // namespace app

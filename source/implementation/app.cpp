@@ -5,12 +5,10 @@ module app;
 
 namespace app
 {
-
-	void App::Init()
-	{
-        if (!RunDemoSdlApp())
-            std::cout << "There is a problem with SDL" << std::endl;
-		std::cout << "App initialized." << std::endl;
-	}
-
+void App::Init()
+{
+    if (!RunDemoSdlApp())
+        std::cout << "There is a problem with SDL" << std::endl;
+    std::cout << "App initialized." << std::endl;
 }
+}  // namespace app
