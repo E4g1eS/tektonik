@@ -34,7 +34,7 @@ void TestSparseSetSimple()
     };
 
     sparseSet.Add(4, "First element");
-    TestAssert(sparseSet.Contains(8));
+    TestAssert(sparseSet.Contains(8) == false);
     checkValidity();
     sparseSet.Add(8, "Second element");
     checkValidity();
@@ -53,7 +53,7 @@ void TestSparseSetModifyingLastElement()
     };
 
     sparseSet.Add(4, "First element");
-    TestAssert(sparseSet.Contains(8));
+    TestAssert(sparseSet.Contains(8) == false);
     checkValidity();
     sparseSet.Add(8, "Second element");
     checkValidity();
