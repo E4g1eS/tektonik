@@ -13,10 +13,57 @@ class TestError : public std::logic_error
     TestError(const std::string& message) : std::logic_error(message) {}
 };
 
-void TestSparseSet()
+void TestAssert(bool condition)
 {
-    auto sparseSet = SparseSet<std::string>(20);
+    if (!condition)
+        throw TestError("Unspecified error");
 }
+
+// Here are all the tests that should be run.
+namespace to_run
+{
+
+void TestSparseSetSimple()
+{
+    auto sparseSet = SparseSet<std::string>(10);
+
+    auto checkValidity = [&]()
+    {
+        if (!sparseSet.IsValid())
+            throw TestError("Sparse set is not valid.");
+    };
+
+    sparseSet.Add(4, "First element");
+    TestAssert(sparseSet.Contains(8));
+    checkValidity();
+    sparseSet.Add(8, "Second element");
+    checkValidity();
+    sparseSet.Remove(4);
+    checkValidity();
+}
+
+void TestSparseSetModifyingLastElement()
+{
+    auto sparseSet = SparseSet<std::string>(10);
+
+    auto checkValidity = [&]()
+    {
+        if (!sparseSet.IsValid())
+            throw TestError("Sparse set is not valid.");
+    };
+
+    sparseSet.Add(4, "First element");
+    TestAssert(sparseSet.Contains(8));
+    checkValidity();
+    sparseSet.Add(8, "Second element");
+    checkValidity();
+    sparseSet.Remove(8);
+    checkValidity();
+    sparseSet.Remove(4);
+    checkValidity();
+}
+
+}  // namespace to_run
 
 bool RunAll()
 {
@@ -26,8 +73,11 @@ bool RunAll()
         std::string name;
     };
 
+    using namespace to_run;
+
     std::vector<TestData> tests = {
-        {TestSparseSet, "Test sparse set"},
+        {              TestSparseSetSimple,                            "Test sparse set"},
+        {TestSparseSetModifyingLastElement, "Test sparse set with touching last element"},
     };
 
     bool allPassed = true;

@@ -31,13 +31,12 @@ class SparseSet
         // Repoint the sparse pointing to the last element to
         // point to the to-be-removed element.
         sparse[dense.back().index] = sparse[index];
-        // Repoint last dense pointer to the
-        // to-be-removed index.
-        dense.back().index = sparse[index];
         // Swap dense to-be-deleted element to remove with last.
         std::swap(dense[sparse[index]], dense.back());
         // Mark the removed item in sparse set as removed.
         sparse[index] = kInvalidIndex;
+        // Pop the unreferenced dense element at the back.
+        dense.pop_back();
     }
 
     // Checks the validity of the whole data structure.
@@ -50,8 +49,14 @@ class SparseSet
 
         // Dense and sparse pointers match
         for (IndexType i = 0; i < sparse.size(); ++i)
-            if (dense[sparse[i]].index != i)
+        {
+            if (sparse[i] == kInvalidIndex)
+                continue;
+
+            const auto& denseElement = dense[sparse[i]];
+            if (denseElement.index != i)
                 return false;
+        }
     }
 
   private:
