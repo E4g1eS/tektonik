@@ -1,7 +1,12 @@
 #ifndef STD_HPP
 #define STD_HPP
 
+#include <algorithm>
+#include <array>
 #include <cassert>
+#include <exception>
+#include <format>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <numeric>

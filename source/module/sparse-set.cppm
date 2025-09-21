@@ -28,10 +28,30 @@ class SparseSet
         assert(IsValid(index));
         assert(Contains(index));
 
-        // Swap dense element to remove with last
+        // Repoint the sparse pointing to the last element to
+        // point to the to-be-removed element.
+        sparse[dense.back().index] = sparse[index];
+        // Repoint last dense pointer to the
+        // to-be-removed index.
+        dense.back().index = sparse[index];
+        // Swap dense to-be-deleted element to remove with last.
         std::swap(dense[sparse[index]], dense.back());
-        // Set sparse index to swapped element index
-        // TODO sparse[index] = 
+        // Mark the removed item in sparse set as removed.
+        sparse[index] = kInvalidIndex;
+    }
+
+    // Checks the validity of the whole data structure.
+    // Basically just for debugging, it is not needed for production.
+    bool IsValid() const
+    {
+        const size_t sparsePointerCount = std::ranges::count_if(sparse, [this](IndexType index) { return index != kInvalidIndex; });
+        if (sparsePointerCount != dense.size())
+            return false;
+
+        // Dense and sparse pointers match
+        for (IndexType i = 0; i < sparse.size(); ++i)
+            if (dense[sparse[i]].index != i)
+                return false;
     }
 
   private:
