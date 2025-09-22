@@ -13,10 +13,10 @@ class TestError : public std::logic_error
     TestError(const std::string& message) : std::logic_error(message) {}
 };
 
-void TestAssert(bool condition)
+void TestAssert(bool condition, const std::string& errorMessage = "Unspecified error")
 {
     if (!condition)
-        throw TestError("Unspecified error");
+        throw TestError(errorMessage);
 }
 
 // Here are all the tests that should be run.
@@ -34,12 +34,17 @@ void TestSparseSetSimple()
     };
 
     sparseSet.Add(4, "First element");
-    TestAssert(sparseSet.Contains(8) == false);
+    TestAssert(sparseSet.Contains(4));
+    TestAssert(!sparseSet.Contains(8));
     checkValidity();
     sparseSet.Add(8, "Second element");
+    TestAssert(sparseSet.Contains(4));
+    TestAssert(sparseSet.Contains(8));
     checkValidity();
     sparseSet.Remove(4);
     checkValidity();
+    TestAssert(sparseSet.Contains(8));
+    TestAssert(!sparseSet.Contains(4));
 }
 
 void TestSparseSetModifyingLastElement()
@@ -87,11 +92,11 @@ bool RunAll()
         try
         {
             test.func();
-            std::cout << std::format("Test {} successful", test.name) << std::endl;
+            std::cout << std::format("Test successful '{}'.", test.name) << std::endl;
         }
         catch (const TestError& testError)
         {
-            std::cout << std::format("Test {} failed: {}", test.name, testError.what()) << std::endl;
+            std::cout << std::format("Test failed '{}' with: {}", test.name, testError.what()) << std::endl;
             allPassed = false;
         }
     }

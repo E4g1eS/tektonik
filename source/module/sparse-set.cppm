@@ -59,6 +59,13 @@ class SparseSet
         }
     }
 
+    auto begin() noexcept { return dense.begin(); }
+    auto cbegin() const noexcept { return dense.cbegin(); }
+    auto end() noexcept { return dense.end(); }
+    auto cend() const noexcept { return dense.cend(); }
+    auto size() const noexcept { return dense.size(); }
+    auto empty() const noexcept { return dense.empty(); }
+
   private:
     struct DenseElement
     {
