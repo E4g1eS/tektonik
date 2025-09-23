@@ -3,6 +3,7 @@ module;
 module test;
 
 import sparse_set;
+import ecs;
 
 namespace test
 {
@@ -68,6 +69,29 @@ void TestSparseSetModifyingLastElement()
     checkValidity();
 }
 
+void TestComponentManager()
+{
+    struct NameComponent : public ecs::IComponent
+    {
+        std::string name;
+    };
+
+    struct ValueComponent : public ecs::IComponent
+    {
+        uint32_t value;
+    };
+
+    ecs::ComponentManager<NameComponent, ValueComponent> componentManager{};
+
+    TestAssert(componentManager.size() == 2);
+    auto& nameComponent = componentManager.GetComponent<NameComponent>();
+    auto& valueComponent = componentManager.GetComponent<ValueComponent>();
+
+    ValueComponent val{};
+    val.value = 5;
+    valueComponent.Add(5, val);
+}
+
 }  // namespace to_run
 
 bool RunAll()
@@ -83,6 +107,7 @@ bool RunAll()
     std::vector<TestData> tests = {
         {              TestSparseSetSimple,                            "Test sparse set"},
         {TestSparseSetModifyingLastElement, "Test sparse set with touching last element"},
+        {             TestComponentManager,       "Test component manager functionality"},
     };
 
     bool allPassed = true;

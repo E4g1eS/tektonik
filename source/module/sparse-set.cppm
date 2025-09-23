@@ -57,6 +57,8 @@ class SparseSet
             if (denseElement.index != i)
                 return false;
         }
+
+        return true;
     }
 
     auto begin() noexcept { return dense.begin(); }
