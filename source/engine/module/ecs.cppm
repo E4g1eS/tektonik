@@ -13,8 +13,30 @@ using Entity = uint32_t;
 class EntityManager
 {
   public:
+    Entity NewEntity()
+    {
+        if (unusedEntities.empty())
+        {
+            return nextMaxCreatedEntity++;
+        }
+        else
+        {
+            Entity unusedEntity = unusedEntities.back();
+            unusedEntities.pop_back();
+            return unusedEntity;
+        }
+    }
+
+    void DeleteEntity(Entity entity)
+    {
+        assert(entity < nextMaxCreatedEntity);
+        unusedEntities.push_back(entity);
+    }
+
   private:
-    std::priority_queue<Entity, std::vector<Entity>, std::greater<Entity>> unusedEntities{};
+    // Already once created entities that were deleted.
+    std::vector<Entity> unusedEntities{};
+    Entity nextMaxCreatedEntity = 0;
 };
 
 template <typename ComponentType>
