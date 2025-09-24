@@ -9,7 +9,6 @@ export namespace ecs
 
 // Basically just an ID.
 using Entity = uint32_t;
-constexpr Entity kMaxEntities = 5000;
 
 class EntityManager
 {
@@ -34,7 +33,7 @@ class ComponentManager
     }
 
     template <Component ComponentType>
-    auto& GetComponent()
+    auto& GetComponentArray()
     {
         auto typeIndex = std::type_index(typeid(ComponentType));
         assert(components.contains(typeIndex));
@@ -54,7 +53,7 @@ class ComponentManager
     class DerivedComponentArray : public IComponentArray, public SparseSet<ComponentType, Entity>
     {
       public:
-        DerivedComponentArray(size_t maxEntities) : SparseSet<ComponentType, Entity>(maxEntities) {}
+        virtual ~DerivedComponentArray() = default;
     };
 
     template <Component ComponentType>
@@ -62,7 +61,7 @@ class ComponentManager
     {
         auto typeIndex = std::type_index(typeid(ComponentType));
 
-        auto derived = std::make_unique<DerivedComponentArray<ComponentType>>(kMaxEntities);
+        auto derived = std::make_unique<DerivedComponentArray<ComponentType>>();
         auto base = static_cast<IComponentArray*>(derived.release());
         components[typeIndex] = std::unique_ptr<IComponentArray>(base);
     }

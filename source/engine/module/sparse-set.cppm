@@ -10,6 +10,7 @@ class SparseSet
   public:
     SparseSet() = default;
     SparseSet(size_t initSize) : sparse(initSize, kInvalidIndex) {}
+    virtual ~SparseSet() = default;
 
     bool Contains(IndexType index) const
     {
@@ -22,7 +23,7 @@ class SparseSet
     void Add(IndexType index, ContainedType element)
     {
         if (index >= sparse.size())
-            sparse.resize(index + 1);
+            sparse.resize(index + 1, kInvalidIndex);
 
         assert(dense.size() < sparse.size());
         assert(IsAllocated(index));
@@ -51,13 +52,13 @@ class SparseSet
     ContainedType& Get(IndexType index)
     {
         assert(Contains(index));
-        return dense[sparse[index]];
+        return dense[sparse[index]].value;
     }
 
     const ContainedType& Get(IndexType index) const
     {
         assert(Contains(index));
-        return dense[sparse[index]];
+        return dense[sparse[index]].value;
     }
 
     // Checks the validity of the whole data structure.
