@@ -82,7 +82,7 @@ class ComponentManager
     void InitComponent(size_t& nextComponentIndex)
     {
         auto typeIndex = std::type_index(typeid(ComponentType));
-
+        assert(!components.contains(typeIndex) && "Components must be unique.");
         auto derived = std::make_unique<DerivedComponentArray<ComponentType>>();
         auto base = static_cast<IComponentArray*>(derived.release());
         components[typeIndex] = std::unique_ptr<IComponentArray>(base);
