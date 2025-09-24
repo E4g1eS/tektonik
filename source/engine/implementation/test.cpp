@@ -71,12 +71,12 @@ void TestSparseSetModifyingLastElement()
 
 void TestComponentManager()
 {
-    struct NameComponent : public ecs::IComponent
+    struct NameComponent
     {
         std::string name;
     };
 
-    struct ValueComponent : public ecs::IComponent
+    struct ValueComponent
     {
         uint32_t value;
     };

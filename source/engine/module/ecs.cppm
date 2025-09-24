@@ -18,18 +18,10 @@ class EntityManager
     std::priority_queue<Entity, std::vector<Entity>, std::greater<Entity>> unusedEntities{};
 };
 
-struct IComponent
-{
-  public:
-    virtual ~IComponent() = default;
-
-  private:
-};
-
 template <typename ComponentType>
-concept DerivedFromComponent = std::derived_from<ComponentType, IComponent>;
+concept Component = std::is_default_constructible_v<ComponentType>;
 
-template <DerivedFromComponent... ComponentTypes>
+template <Component... ComponentTypes>
 class ComponentManager
 {
   public:
@@ -41,7 +33,7 @@ class ComponentManager
         (InitComponent<ComponentTypes>(nextComponentIndex), ...);
     }
 
-    template <DerivedFromComponent ComponentType>
+    template <Component ComponentType>
     auto& GetComponent()
     {
         auto typeIndex = std::type_index(typeid(ComponentType));
@@ -58,14 +50,14 @@ class ComponentManager
         virtual ~IComponentArray() = default;
     };
 
-    template <DerivedFromComponent ComponentType>
+    template <Component ComponentType>
     class DerivedComponentArray : public IComponentArray, public SparseSet<ComponentType, Entity>
     {
       public:
         DerivedComponentArray(size_t maxEntities) : SparseSet<ComponentType, Entity>(maxEntities) {}
     };
 
-    template <DerivedFromComponent ComponentType>
+    template <Component ComponentType>
     void InitComponent(size_t& nextComponentIndex)
     {
         auto typeIndex = std::type_index(typeid(ComponentType));

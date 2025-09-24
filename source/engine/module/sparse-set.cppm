@@ -9,14 +9,23 @@ class SparseSet
 {
   public:
     SparseSet() = default;
-    SparseSet(size_t maxElements) : sparse(maxElements, kInvalidIndex) {}
+    SparseSet(size_t initSize) : sparse(initSize, kInvalidIndex) {}
 
-    bool Contains(IndexType index) const { return sparse[index] != kInvalidIndex; }
+    bool Contains(IndexType index) const
+    {
+        if (!IsAllocated(index))
+            return false;
+
+        return sparse[index] != kInvalidIndex;
+    }
 
     void Add(IndexType index, ContainedType element)
     {
+        if (index >= sparse.size())
+            sparse.resize(index + 1);
+
         assert(dense.size() < sparse.size());
-        assert(IsValid(index));
+        assert(IsAllocated(index));
         assert(!Contains(index));
 
         sparse[index] = dense.size();
@@ -25,7 +34,7 @@ class SparseSet
 
     void Remove(IndexType index)
     {
-        assert(IsValid(index));
+        assert(IsAllocated(index));
         assert(Contains(index));
 
         // Repoint the sparse pointing to the last element to
@@ -37,6 +46,18 @@ class SparseSet
         sparse[index] = kInvalidIndex;
         // Pop the unreferenced dense element at the back.
         dense.pop_back();
+    }
+
+    ContainedType& Get(IndexType index)
+    {
+        assert(Contains(index));
+        return dense[sparse[index]];
+    }
+
+    const ContainedType& Get(IndexType index) const
+    {
+        assert(Contains(index));
+        return dense[sparse[index]];
     }
 
     // Checks the validity of the whole data structure.
@@ -75,7 +96,7 @@ class SparseSet
         ContainedType value;
     };
 
-    bool IsValid(IndexType index) const { return index >= 0 && index < sparse.size(); }
+    bool IsAllocated(IndexType index) const { return index >= 0 && index < sparse.size(); }
 
     inline static constexpr IndexType kInvalidIndex = std::numeric_limits<IndexType>::max();
 
