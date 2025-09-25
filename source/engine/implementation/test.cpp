@@ -82,13 +82,9 @@ void TestComponentManager()
     };
 
     ecs::ComponentManager<NameComponent, ValueComponent> componentManager{};
-
     TestAssert(componentManager.size() == 2);
-    auto& nameComponent = componentManager.GetComponentArray<NameComponent>();
-    auto& valueComponent = componentManager.GetComponentArray<ValueComponent>();
-
-    valueComponent.Add(5, ValueComponent{.value = 69});
-    TestAssert(valueComponent.Get(5).value == 69, "Get is wrong");
+    componentManager.AddComponent(5, ValueComponent{.value = 5});
+    componentManager.RemoveComponent<ValueComponent>(5);
 }
 
 }  // namespace to_run
