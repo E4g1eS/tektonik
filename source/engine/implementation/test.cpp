@@ -82,7 +82,7 @@ void TestComponentManager()
     };
 
     ecs::ComponentManager<NameComponent, ValueComponent> componentManager{};
-    static_assert(componentManager.kComponentCount == 2);
+    static_assert(componentManager.kComponentTypeCount == 2);
     componentManager.AddComponent(5, ValueComponent{.value = 5});
     componentManager.RemoveComponent<ValueComponent>(5);
 }

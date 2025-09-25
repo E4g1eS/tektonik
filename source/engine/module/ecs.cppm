@@ -67,7 +67,7 @@ class ComponentManager
             componentsHaveEntities[signature].erase(entity);
         }
         // Get the bit of the component.
-        size_t componentBit = ComponentTypeToBit<ComponentType>();
+        size_t componentBit = GetComponentTypeIndex<ComponentType>();
         assert(componentBit < signature.size());
         // Adjust the signature.
         signature[componentBit] = true;
@@ -87,7 +87,7 @@ class ComponentManager
         assert(componentsHaveEntities[signature].contains(entity));
         componentsHaveEntities[signature].erase(entity);
         // Get the bit of the component.
-        size_t componentBit = ComponentTypeToBit<ComponentType>();
+        size_t componentBit = GetComponentTypeIndex<ComponentType>();
         assert(componentBit < signature.size());
         // Adjust the signature.
         signature[componentBit] = false;
@@ -113,19 +113,18 @@ class ComponentManager
     template <Component ComponentType>
     void InitComponent()
     {
-        auto typeIndex = std::type_index(typeid(ComponentType));
-        assert(!components.contains(typeIndex) && "Components must be unique.");
+        auto typeIndex = GetComponentTypeIndex<ComponentType>();
+        assert(!componentsArrays[typeIndex] && "Components must be unique.");
         auto derived = std::make_unique<DerivedComponentArray<ComponentType>>();
         auto base = static_cast<IComponentArray*>(derived.release());
-        components[typeIndex] = std::unique_ptr<IComponentArray>(base);
+        componentsArrays[typeIndex] = std::unique_ptr<IComponentArray>(base);
     }
 
     template <Component ComponentType>
     auto& GetComponentArray()
     {
-        auto typeIndex = std::type_index(typeid(ComponentType));
-        assert(components.contains(typeIndex));
-        return *static_cast<DerivedComponentArray<ComponentType>*>(components[typeIndex].get());
+        auto typeIndex = GetComponentTypeIndex<ComponentType>();
+        return *static_cast<DerivedComponentArray<ComponentType>*>(componentsArrays[typeIndex].get());
     }
 
     ComponentSignature& GetEntityComponentSignature(Entity entity)
@@ -137,7 +136,7 @@ class ComponentManager
     }
 
     template <Component ComponentType>
-    consteval size_t ComponentTypeToBit()
+    consteval size_t GetComponentTypeIndex()
     {
         size_t result = std::numeric_limits<size_t>::max();
         size_t componentIndex = 0;
@@ -154,7 +153,8 @@ class ComponentManager
         return result;
     }
 
-    std::unordered_map<std::type_index, std::unique_ptr<IComponentArray>> components;
+    // An array of component arrays.
+    std::array<std::unique_ptr<IComponentArray>, kComponentTypeCount> componentsArrays;
     // Tracks component signature to entities.
     std::unordered_map<ComponentSignature, std::set<Entity>> componentsHaveEntities;
     // Tracks what components a specific entity has.
