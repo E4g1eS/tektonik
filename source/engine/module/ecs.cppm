@@ -46,7 +46,9 @@ template <Component... ComponentTypes>
 class ComponentManager
 {
   public:
-    using ComponentSignature = std::bitset<sizeof...(ComponentTypes)>;
+    static constexpr size_t kComponentTypeCount = sizeof...(ComponentTypes);
+
+    using ComponentSignature = std::bitset<kComponentTypeCount>;
 
     ComponentManager() { (InitComponent<ComponentTypes>(), ...); }
 
@@ -93,8 +95,6 @@ class ComponentManager
         if (signature != ComponentSignature{})
             componentsHaveEntities[signature].insert(entity);
     }
-
-    auto size() const noexcept { return components.size(); }
 
   private:
     struct IComponentArray
