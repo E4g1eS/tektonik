@@ -104,8 +104,20 @@ void TestWorld()
     World<ecs::ComponentManager<NameComponent, ValueComponent>> world{};
 
     Entity entity = world.NewEntity();
-    world.GetComponentManager().AddComponent(entity, NameComponent{"player"});
+    world.GetComponentManager().AddComponent(entity, NameComponent{"random"});
     world.DeleteEntity(entity);
+
+    Entity car1 = world.NewEntity();
+    Entity car2 = world.NewEntity();
+    world.GetComponentManager().AddComponent(car1, ValueComponent{0});
+    world.GetComponentManager().AddComponent(car2, ValueComponent{1});
+
+    auto entityRange = world.GetComponentManager().GetEntitiesWithComponents<ValueComponent>();
+    for (auto entity : entityRange)
+    {
+        ValueComponent& valueComponent = world.GetComponentManager().GetComponent<ValueComponent>(entity);
+        TestAssert(valueComponent.value == 0 || valueComponent.value == 1);
+    }
 }
 
 }  // namespace to_run

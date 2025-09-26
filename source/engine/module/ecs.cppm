@@ -40,6 +40,26 @@ class EntityManager
     Entity nextMaxCreatedEntity = 0;
 };
 
+class EntityRange
+{
+  public:
+    using InputRange = std::vector<std::set<Entity>*>;
+
+    EntityRange(InputRange&& entitySets)
+        : entitySets(std::move(entitySets)), view(std::views::join(std::views::transform(this->entitySets, TransformFunc)))
+    {
+    }
+
+    auto begin() { return view.begin(); }
+    auto end() { return view.end(); }
+
+  private:
+    static std::set<Entity>& TransformFunc(std::set<Entity>* entitySet) { return *entitySet; }
+
+    InputRange entitySets;
+    decltype(std::views::join(std::views::transform(entitySets, TransformFunc))) view;
+};
+
 template <typename T>
 concept Component = std::is_default_constructible_v<T>;
 
@@ -48,8 +68,6 @@ class ComponentManager
 {
   public:
     static constexpr size_t kComponentTypeCount = sizeof...(ComponentTypes);
-    using ComponentSignature = std::bitset<kComponentTypeCount>;
-    static constexpr ComponentSignature kNullComponentSignature = ComponentSignature{};
 
     ComponentManager() { (InitComponent<ComponentTypes>(), ...); }
 
@@ -97,10 +115,16 @@ class ComponentManager
             signaturesHaveEntities[signature].insert(entity);
     }
 
+    template <Component ComponentType>
+    Component auto& GetComponent(Entity entity)
+    {
+        return GetComponentArray<ComponentType>().Get(entity);
+    }
+
     void RemoveAllComponents(Entity entity)
     {
         const ComponentSignature& signature = GetEntityComponentSignature(entity);
-        
+
         // Remove entity from its component arrays.
         size_t typeIndex = 0;
         const auto removeEntityFromArray = [&]<Component ComponentType>()
@@ -118,7 +142,27 @@ class ComponentManager
         entitiesHaveComponents[entity] = kNullComponentSignature;
     }
 
+    template <Component... SelectedComponents>
+    EntityRange GetEntitiesWithComponents()
+    {
+        std::vector<std::set<Entity>*> entitySets{};
+        ComponentSignature wantedSignature = GetSignatureFromComponents<SelectedComponents...>();
+
+        for (auto& [iteratedSignature, set] : signaturesHaveEntities)
+        {
+            const bool containsAllWantedBits = ((iteratedSignature & wantedSignature) == wantedSignature);
+            if (containsAllWantedBits)
+                entitySets.push_back(&set);
+        }
+
+        return EntityRange(std::move(entitySets));
+    }
+
   private:
+    using ComponentSignature = std::bitset<kComponentTypeCount>;
+    static constexpr ComponentSignature kNullComponentSignature = ComponentSignature{};
+    static constexpr size_t kInvalidTypeIndex = std::numeric_limits<size_t>::max();
+
     struct IComponentArray
     {
       public:
@@ -149,24 +193,6 @@ class ComponentManager
         return *static_cast<DerivedComponentArray<ComponentType>*>(componentArrays[typeIndex].get());
     }
 
-    template <typename ComponentArrayType>
-    auto& GetComponentArrayFromIndex(size_t typeIndex)
-    {
-        size_t i = 0;
-        ComponentArrayType* componentArray = nullptr;
-
-        auto kGetComponentArray = [&](Component auto dummy)
-        {
-            if (i == typeIndex)
-                componentArray = &GetComponentArray<Component>();
-            ++i;
-        };
-
-        (kGetComponentArray(ComponentTypes{}), ...);
-
-        return *componentArray;
-    }
-
     ComponentSignature& GetEntityComponentSignature(Entity entity)
     {
         if (entity >= entitiesHaveComponents.size())
@@ -176,21 +202,30 @@ class ComponentManager
     }
 
     template <Component ComponentType>
-    consteval size_t GetComponentTypeIndex()
+    consteval size_t GetComponentTypeIndex(bool allowInvalid = false)
     {
-        size_t result = std::numeric_limits<size_t>::max();
+        size_t result = kInvalidTypeIndex;
         size_t componentIndex = 0;
 
-        auto getResult = [&](Component auto dummy)
+        const auto getResult = [&]<Component IteratedComponentType>()
         {
-            if constexpr (std::is_same_v<decltype(dummy), ComponentType>)
+            if constexpr (std::is_same_v<IteratedComponentType, ComponentType>)
                 result = componentIndex;
 
             ++componentIndex;
         };
 
-        (getResult(ComponentTypes{}), ...);
+        (getResult.template operator()<ComponentTypes>(), ...);
+        assert(allowInvalid || result != kInvalidTypeIndex);
         return result;
+    }
+
+    template <Component... SelectedComponentTypes>
+    consteval ComponentSignature GetSignatureFromComponents()
+    {
+        auto signature = ComponentSignature{};
+        ((signature[GetComponentTypeIndex<SelectedComponentTypes>()] = true), ...);
+        return signature;
     }
 
     // An array of component arrays.

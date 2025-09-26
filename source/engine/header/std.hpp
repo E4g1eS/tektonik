@@ -14,6 +14,7 @@
 #include <memory>
 #include <numeric>
 #include <queue>
+#include <ranges>
 #include <set>
 #include <typeindex>
 #include <unordered_map>
