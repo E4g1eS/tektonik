@@ -1,7 +1,8 @@
 module;
-#include "std.hpp"
-#include <glm/glm.hpp>
+
 export module components;
+
+import glm;
 
 namespace components
 {

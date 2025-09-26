@@ -20,7 +20,12 @@ add_custom_command(TARGET Engine POST_BUILD
 
 # GLM
 add_subdirectory(external/glm)
-target_include_directories(Engine PUBLIC "external/glm")
+target_sources(Engine
+    PUBLIC
+    FILE_SET CXX_MODULES
+    BASE_DIRS external/glm/glm
+    FILES external/glm/glm/glm.cppm
+)
 target_link_libraries(Engine PUBLIC glm::glm)
 
 # Add own headers
