@@ -87,6 +87,27 @@ void TestComponentManager()
     componentManager.RemoveComponent<ValueComponent>(5);
 }
 
+void TestWorld()
+{
+    using namespace ecs;
+
+    struct NameComponent
+    {
+        std::string name;
+    };
+
+    struct ValueComponent
+    {
+        uint32_t value;
+    };
+
+    World<ecs::ComponentManager<NameComponent, ValueComponent>> world{};
+
+    Entity entity = world.NewEntity();
+    world.GetComponentManager().AddComponent(entity, NameComponent{"player"});
+    world.DeleteEntity(entity);
+}
+
 }  // namespace to_run
 
 bool RunAll()
@@ -103,6 +124,7 @@ bool RunAll()
         {              TestSparseSetSimple,                            "Test sparse set"},
         {TestSparseSetModifyingLastElement, "Test sparse set with touching last element"},
         {             TestComponentManager,       "Test component manager functionality"},
+        {                        TestWorld,                             "Test ECS world"},
     };
 
     bool allPassed = true;

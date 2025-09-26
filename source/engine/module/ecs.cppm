@@ -3,6 +3,7 @@ module;
 export module ecs;
 
 import sparse_set;
+import concepts;
 
 export namespace ecs
 {
@@ -47,8 +48,8 @@ class ComponentManager
 {
   public:
     static constexpr size_t kComponentTypeCount = sizeof...(ComponentTypes);
-
     using ComponentSignature = std::bitset<kComponentTypeCount>;
+    static constexpr ComponentSignature kNullComponentSignature = ComponentSignature{};
 
     ComponentManager() { (InitComponent<ComponentTypes>(), ...); }
 
@@ -62,9 +63,9 @@ class ComponentManager
         // Remove from current entity set if currently had any components.
         if (signature != ComponentSignature{})
         {
-            assert(componentsHaveEntities.contains(signature));
-            assert(componentsHaveEntities[signature].contains(entity));
-            componentsHaveEntities[signature].erase(entity);
+            assert(signaturesHaveEntities.contains(signature));
+            assert(signaturesHaveEntities[signature].contains(entity));
+            signaturesHaveEntities[signature].erase(entity);
         }
         // Get the bit of the component.
         size_t componentBit = GetComponentTypeIndex<ComponentType>();
@@ -72,7 +73,7 @@ class ComponentManager
         // Adjust the signature.
         signature[componentBit] = true;
         // Add to the adjusted entity set.
-        componentsHaveEntities[signature].insert(entity);
+        signaturesHaveEntities[signature].insert(entity);
     }
 
     template <Component ComponentType>
@@ -83,9 +84,9 @@ class ComponentManager
         // Get current signature.
         ComponentSignature& signature = GetEntityComponentSignature(entity);
         // Remove from current entity set.
-        assert(componentsHaveEntities.contains(signature));
-        assert(componentsHaveEntities[signature].contains(entity));
-        componentsHaveEntities[signature].erase(entity);
+        assert(signaturesHaveEntities.contains(signature));
+        assert(signaturesHaveEntities[signature].contains(entity));
+        signaturesHaveEntities[signature].erase(entity);
         // Get the bit of the component.
         size_t componentBit = GetComponentTypeIndex<ComponentType>();
         assert(componentBit < signature.size());
@@ -93,7 +94,28 @@ class ComponentManager
         signature[componentBit] = false;
         // Add to the adjusted entity set if not zero.
         if (signature != ComponentSignature{})
-            componentsHaveEntities[signature].insert(entity);
+            signaturesHaveEntities[signature].insert(entity);
+    }
+
+    void RemoveAllComponents(Entity entity)
+    {
+        const ComponentSignature& signature = GetEntityComponentSignature(entity);
+        
+        // Remove entity from its component arrays.
+        size_t typeIndex = 0;
+        const auto removeEntityFromArray = [&]<Component ComponentType>()
+        {
+            if (signature[typeIndex])
+                GetComponentArray<ComponentType>().Remove(entity);
+            ++typeIndex;
+        };
+        (removeEntityFromArray.template operator()<ComponentTypes>(), ...);
+
+        assert(signaturesHaveEntities.contains(signature));
+        assert(signaturesHaveEntities[signature].contains(entity));
+        signaturesHaveEntities[signature].erase(entity);
+
+        entitiesHaveComponents[entity] = kNullComponentSignature;
     }
 
   private:
@@ -114,17 +136,35 @@ class ComponentManager
     void InitComponent()
     {
         auto typeIndex = GetComponentTypeIndex<ComponentType>();
-        assert(!componentsArrays[typeIndex] && "Components must be unique.");
+        assert(!componentArrays[typeIndex] && "Components must be unique.");
         auto derived = std::make_unique<DerivedComponentArray<ComponentType>>();
         auto base = static_cast<IComponentArray*>(derived.release());
-        componentsArrays[typeIndex] = std::unique_ptr<IComponentArray>(base);
+        componentArrays[typeIndex] = std::unique_ptr<IComponentArray>(base);
     }
 
     template <Component ComponentType>
     auto& GetComponentArray()
     {
         auto typeIndex = GetComponentTypeIndex<ComponentType>();
-        return *static_cast<DerivedComponentArray<ComponentType>*>(componentsArrays[typeIndex].get());
+        return *static_cast<DerivedComponentArray<ComponentType>*>(componentArrays[typeIndex].get());
+    }
+
+    template <typename ComponentArrayType>
+    auto& GetComponentArrayFromIndex(size_t typeIndex)
+    {
+        size_t i = 0;
+        ComponentArrayType* componentArray = nullptr;
+
+        auto kGetComponentArray = [&](Component auto dummy)
+        {
+            if (i == typeIndex)
+                componentArray = &GetComponentArray<Component>();
+            ++i;
+        };
+
+        (kGetComponentArray(ComponentTypes{}), ...);
+
+        return *componentArray;
     }
 
     ComponentSignature& GetEntityComponentSignature(Entity entity)
@@ -141,7 +181,7 @@ class ComponentManager
         size_t result = std::numeric_limits<size_t>::max();
         size_t componentIndex = 0;
 
-        auto kGetResult = [&](Component auto dummy)
+        auto getResult = [&](Component auto dummy)
         {
             if constexpr (std::is_same_v<decltype(dummy), ComponentType>)
                 result = componentIndex;
@@ -149,32 +189,35 @@ class ComponentManager
             ++componentIndex;
         };
 
-        (kGetResult(ComponentTypes{}), ...);
+        (getResult(ComponentTypes{}), ...);
         return result;
     }
 
     // An array of component arrays.
-    std::array<std::unique_ptr<IComponentArray>, kComponentTypeCount> componentsArrays;
+    std::array<std::unique_ptr<IComponentArray>, kComponentTypeCount> componentArrays;
     // Tracks component signature to entities.
-    std::unordered_map<ComponentSignature, std::set<Entity>> componentsHaveEntities;
+    std::unordered_map<ComponentSignature, std::set<Entity>> signaturesHaveEntities;
     // Tracks what components a specific entity has.
     std::vector<ComponentSignature> entitiesHaveComponents;
-};
-
-template <typename T>
-concept SpecifiedComponentManager = requires(T object) {
-    { ComponentManager{object} } -> std::same_as<T>;
 };
 
 class SystemManager
 {
 };
 
-template <SpecifiedComponentManager ComponentManagerType>
+template <concepts::InstantiatedFrom<ComponentManager> ComponentManagerType>
 class World
 {
   public:
     Entity NewEntity() { return entityManager.NewEntity(); }
+    void DeleteEntity(Entity entity)
+    {
+        componentManager.RemoveAllComponents(entity);
+        entityManager.DeleteEntity(entity);
+    }
+
+    auto& GetComponentManager() { return componentManager; }
+    const auto& GetComponentManager() const { return componentManager; }
 
   private:
     EntityManager entityManager{};
