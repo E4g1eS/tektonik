@@ -10,7 +10,12 @@ export namespace runtime
 class Runtime
 {
   public:
-    void Run();
+    struct RunOptions
+    {
+        bool runTests = true;
+    };
+
+    void Run(const RunOptions& runOptions = RunOptions{});
 
   private:
 };

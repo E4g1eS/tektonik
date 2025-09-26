@@ -6,9 +6,9 @@ import test;
 namespace runtime
 {
 
-void Runtime::Run()
+void Runtime::Run(const RunOptions& runOptions)
 {
-    if (!test::RunAll())
+    if (runOptions.runTests && !test::RunAll())
         return;
 
     auto app = app::App();

@@ -18,6 +18,11 @@ add_custom_command(TARGET Engine POST_BUILD
   $<TARGET_FILE:SDL3::SDL3>
   $<TARGET_FILE_DIR:Engine>)
 
+# GLM
+add_subdirectory(external/glm)
+target_include_directories(Engine PUBLIC "external/glm")
+target_link_libraries(Engine PUBLIC glm::glm)
+
 # Add own headers
 target_include_directories(Engine PUBLIC "source/engine/header")
 
