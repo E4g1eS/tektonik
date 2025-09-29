@@ -63,6 +63,11 @@ class EntityRange
 template <typename T>
 concept Component = std::is_default_constructible_v<T>;
 
+struct DummyComponent
+{
+};
+static_assert(Component<DummyComponent>);
+
 template <Component... ComponentTypes>
 class ComponentManager
 {
