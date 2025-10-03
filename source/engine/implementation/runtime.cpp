@@ -11,6 +11,7 @@ namespace tektonik
 
 void Runtime::Test()
 {
+    Singleton<Logger>::Init();
     test::RunAll();
 }
 
@@ -23,4 +24,4 @@ void Runtime::OpenDemoWindow()
         Singleton<Logger>::Get().Log<LogLevel::Error>("There is a problem with SDL");
 }
 
-}  // namespace runtime
+}  // namespace tektonik

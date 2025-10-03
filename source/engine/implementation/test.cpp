@@ -148,7 +148,6 @@ bool RunAll()
 
     bool allPassed = true;
 
-    S_Logger::Init();
     S_Logger::Get().Log("Running tests...");
 
     for (const TestData& test : tests)
