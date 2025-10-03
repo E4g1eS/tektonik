@@ -18,7 +18,7 @@ export class Logger
   public:
     Logger(std::ostream& outputStream = std::cout) noexcept : outputStream(outputStream) {}
 
-    template <LogLevel level>
+    template <LogLevel level = LogLevel::Info>
     void Log(const Loggable auto& message)
     {
         if constexpr (level == LogLevel::Error)

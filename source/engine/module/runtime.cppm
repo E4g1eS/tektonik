@@ -19,6 +19,7 @@ class Runtime
 
     // Runs tests.
     static void Test();
+    static void OpenDemoWindow();
 
   private:
 };

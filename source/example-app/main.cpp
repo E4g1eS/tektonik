@@ -8,6 +8,8 @@ int main()
 
     tektonik::Runtime::Test();
 
+    tektonik::Runtime::OpenDemoWindow();
+
     S_Logger::Get().Log<tektonik::LogLevel::Info>("Shutting down.");
     S_Logger::Destroy();
 

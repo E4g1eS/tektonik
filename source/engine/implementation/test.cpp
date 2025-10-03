@@ -4,9 +4,16 @@ module test;
 
 import sparse_set;
 import ecs;
+import singleton;
+import logger;
 
 namespace tektonik::test
 {
+
+namespace
+{
+using S_Logger = Singleton<Logger>;
+}
 
 class TestError : public std::logic_error
 {
@@ -141,16 +148,19 @@ bool RunAll()
 
     bool allPassed = true;
 
+    S_Logger::Init();
+    S_Logger::Get().Log<LogLevel::Info>("Running tests...");
+
     for (const TestData& test : tests)
     {
         try
         {
             test.func();
-            std::cout << std::format("Test successful '{}'.", test.name) << std::endl;
+            S_Logger::Get().Log<LogLevel::Info>(std::format("Test successful '{}'.", test.name));
         }
         catch (const TestError& testError)
         {
-            std::cout << std::format("Test failed '{}' with: {}", test.name, testError.what()) << std::endl;
+            S_Logger::Get().Log<LogLevel::Info>(std::format("Test failed '{}' with: {}", test.name, testError.what()));
             allPassed = false;
         }
     }
@@ -158,4 +168,4 @@ bool RunAll()
     return allPassed;
 }
 
-}  // namespace test
+}  // namespace tektonik::test

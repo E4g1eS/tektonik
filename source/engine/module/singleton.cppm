@@ -13,12 +13,12 @@ export template <Singletonable ContainedType>
 class Singleton
 {
   public:
-    // For other-than-default construction.
+    // Only initializes if not already initialized.
     template <typename... Args>
     static void Init(Args&&... args)
     {
-        ASSUMERT(!GetContained().has_value());
-        GetContained().emplace(std::forward<Args>(args)...);
+        if (!GetContained().has_value())
+            GetContained().emplace(std::forward<Args>(args)...);
     }
 
     static ContainedType& Get()

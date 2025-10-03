@@ -31,4 +31,10 @@
 #define ASSUMERT(condition) assert(condition)
 #endif
 
+#ifdef NDEBUG
+#define DEBUG_ONLY(code)
+#else
+#define DEBUG_ONLY(code) code
+#endif
+
 #endif
