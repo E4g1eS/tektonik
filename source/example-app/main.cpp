@@ -13,8 +13,8 @@ int main(int argc, char* argv[])
 
     S_Logger::Get().Log(std::format("Command line arguments:\n{}", tk::util::string::ToString(argsMap)));
 
-    tk::Runtime::Test();
-    tk::Runtime::OpenDemoWindow();
+    runtime.Test();
+    runtime.OpenDemoWindow();
 
     return 0;
 }

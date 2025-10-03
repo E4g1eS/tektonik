@@ -8,29 +8,30 @@ namespace tektonik
 template <typename T>
 concept Singletonable = std::is_constructible_v<T>;
 
-// A Singleton implementation that must be explicitly initialized and destroyed.
+// A Singleton implementation that is explicitly initialized and destroyed
+// in constructor and destructor.
 export template <Singletonable ContainedType>
 class Singleton
 {
   public:
-    // Only initializes if not already initialized.
-    template <typename... Args>
-    static void Init(Args&&... args)
+    Singleton() { GetContained().emplace(); }
+    ~Singleton()
     {
-        if (!GetContained().has_value())
-            GetContained().emplace(std::forward<Args>(args)...);
+        ASSUMERT(GetContained().has_value());
+        GetContained() = std::nullopt;
+    }
+
+    // For non default re-initialization.
+    template <typename... Args>
+    static void ReInit(Args&&... args)
+    {
+        GetContained().emplace(std::forward<Args>(args)...);
     }
 
     static ContainedType& Get()
     {
         ASSUMERT(GetContained().has_value());
         return *(GetContained());
-    }
-
-    static void Destroy()
-    {
-        ASSUMERT(GetContained().has_value());
-        GetContained() = std::nullopt;
     }
 
   private:

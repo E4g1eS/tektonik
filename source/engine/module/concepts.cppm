@@ -21,4 +21,7 @@ constexpr bool is_instantiation_of_v = is_instantiation_of<T, Template>::value;
 export template <typename T, template <typename...> class Template>
 concept InstantiatedFrom = is_instantiation_of_v<T, Template>;
 
+export template <typename T>
+concept StringLike = std::is_convertible_v<T, std::string>;
+
 }

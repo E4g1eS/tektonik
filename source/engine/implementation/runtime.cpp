@@ -9,15 +9,13 @@ import singleton;
 namespace tektonik
 {
 
-void Runtime::Test()
+void Runtime::Test() const
 {
-    Singleton<Logger>::Init();
     test::RunAll();
 }
 
-void Runtime::OpenDemoWindow()
+void Runtime::OpenDemoWindow() const
 {
-    Singleton<Logger>::Init();
     Singleton<Logger>::Get().Log("Opening a demo SDL window...");
 
     if (!RunDemoSdlApp())

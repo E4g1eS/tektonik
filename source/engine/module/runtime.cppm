@@ -5,6 +5,7 @@ export module runtime;
 import app;
 import logger;
 import singleton;
+import config;
 
 export namespace tektonik
 {
@@ -19,22 +20,17 @@ class Runtime
 
     Runtime(const RunOptions& runOptions = RunOptions{})
     {
-        Singleton<Logger>::Init();
-        Singleton<Logger>::Get().Log("Logger initialized.");
     }
     Runtime(const Runtime&) = delete;
     Runtime& operator=(const Runtime&) = delete;
-    ~Runtime()
-    {
-        Singleton<Logger>::Get().Log("Shutting down.");
-        Singleton<Logger>::Destroy();
-    }
 
     // Runs tests.
-    static void Test();
-    static void OpenDemoWindow();
+    void Test() const;
+    void OpenDemoWindow() const;
 
   private:
+    Singleton<Logger> logger;
+    Singleton<config::Manager> configManager;
 };
 
 }  // namespace tektonik
