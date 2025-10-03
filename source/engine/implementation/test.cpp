@@ -149,18 +149,18 @@ bool RunAll()
     bool allPassed = true;
 
     S_Logger::Init();
-    S_Logger::Get().Log<LogLevel::Info>("Running tests...");
+    S_Logger::Get().Log("Running tests...");
 
     for (const TestData& test : tests)
     {
         try
         {
             test.func();
-            S_Logger::Get().Log<LogLevel::Info>(std::format("Test successful '{}'.", test.name));
+            S_Logger::Get().Log(std::format("Test successful '{}'.", test.name));
         }
         catch (const TestError& testError)
         {
-            S_Logger::Get().Log<LogLevel::Info>(std::format("Test failed '{}' with: {}", test.name, testError.what()));
+            S_Logger::Get().Log<LogLevel::Error>(std::format("Test failed '{}' with: {}", test.name, testError.what()));
             allPassed = false;
         }
     }
