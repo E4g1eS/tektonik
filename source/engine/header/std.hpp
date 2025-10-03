@@ -17,9 +17,16 @@
 #include <queue>
 #include <ranges>
 #include <set>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <type_traits>
 #include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
+#include <variant>
+#include <vector>
 
 // Macros that cannot be replaced by fancy C++ constructs.
 // Mostly conditional compilation that can actually completely remove code.

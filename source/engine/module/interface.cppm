@@ -9,3 +9,4 @@ export import ecs;
 export import logger;
 export import runtime;
 export import singleton;
+export import util;

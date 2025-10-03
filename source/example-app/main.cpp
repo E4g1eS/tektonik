@@ -1,14 +1,18 @@
+#include "std.hpp"
 import tektonik;
 
-int main()
+namespace tk = tektonik;
+
+int main(int argc, char* argv[])
 {
-    using S_Logger = tektonik::Singleton<tektonik::Logger>;
+    using S_Logger = tk::Singleton<tk::Logger>;
     S_Logger::Init();
     S_Logger::Get().Log("Logger initialized.");
 
-    tektonik::Runtime::Test();
+    S_Logger::Get().Log(tk::util::string::ToString(tk::util::ParseCommandLineArguments(argc, argv)));
 
-    tektonik::Runtime::OpenDemoWindow();
+    tk::Runtime::Test();
+    tk::Runtime::OpenDemoWindow();
 
     S_Logger::Get().Log("Shutting down.");
     S_Logger::Destroy();
