@@ -2,6 +2,8 @@ module;
 #include "std.hpp"
 export module util;
 
+import concepts;
+
 // Utility functions and classes that do not fit anywhere else.
 namespace tektonik::util
 {
@@ -57,6 +59,37 @@ std::string ToString(const std::unordered_map<KeyType, ValueType>& map)
 
     return ss.str();
 }
+
+export enum class Case {
+    Lower,
+    Upper,
+};
+
+template <Case caseConvert>
+std::string ToCaseFromStringView(const std::string_view& str)
+{
+    std::stringstream ss;
+    for (char c : str)
+    {
+        if constexpr (caseConvert == Case::Lower)
+            ss << static_cast<char>(std::tolower(c));
+        else
+            ss << static_cast<char>(std::toupper(c));
+    }
+
+    return ss.str();
+}
+
+export template <Case caseConvert>
+std::string ToCase(const concepts::StaticCastableTo<std::string_view> auto& str)
+{
+    if constexpr (std::is_same_v < decltype(str), const std::string_view&>)
+        return ToCaseFromStringView<caseConvert>(str);
+    else
+        return ToCaseFromStringView<caseConvert>(static_cast<std::string_view>(str));
+}
+
+
 
 }  // namespace string
 
