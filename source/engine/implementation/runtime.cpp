@@ -3,15 +3,12 @@ module runtime;
 
 import test;
 
-namespace runtime
+namespace tektonik
 {
 
-void Runtime::Run(const RunOptions& runOptions)
+void Runtime::Test()
 {
-    if (runOptions.runTests && !test::RunAll())
-        return;
-
-    auto app = app::App();
-    app.Init();
+    test::RunAll();
 }
+
 }  // namespace runtime

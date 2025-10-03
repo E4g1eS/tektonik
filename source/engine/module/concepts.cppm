@@ -2,7 +2,7 @@ module;
 #include <std.hpp>
 export module concepts;
 
-namespace concepts
+namespace tektonik::concepts
 {
 
 template <typename T, template <typename...> class Template>

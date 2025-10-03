@@ -1,6 +1,6 @@
 export module test;
 
-namespace test
+namespace tektonik::test
 {
 
 export bool RunAll();

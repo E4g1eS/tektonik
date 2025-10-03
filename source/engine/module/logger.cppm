@@ -3,8 +3,9 @@ module;
 export module logger;
 
 import common;
+import singleton;
 
-namespace logging
+namespace tektonik
 {
 
 export enum class LogLevel { Error, Warning, Info, Debug };
@@ -15,23 +16,23 @@ concept Loggable = requires(T obj) { std::cout << obj << std::endl; };
 export class Logger
 {
   public:
-    Logger(std::ostream& outputStream = std::cout) : outputStream(outputStream) {}
+    Logger(std::ostream& outputStream = std::cout) noexcept : outputStream(outputStream) {}
 
     template <LogLevel level>
     void Log(const Loggable auto& message)
     {
         if constexpr (level == LogLevel::Error)
-            outputStream << "[ERROR]" << message << std::endl;
+            outputStream << "[ERROR] " << message << std::endl;
         else if constexpr (level == LogLevel::Warning)
-            outputStream << "[WARNING]" << message << std::endl;
+            outputStream << "[WARNING] " << message << std::endl;
         else if constexpr (level == LogLevel::Info)
-            outputStream << "[INFO]" << message << std::endl;
+            outputStream << "[INFO] " << message << std::endl;
         else if constexpr (level == LogLevel::Debug && common::kDebugBuild)
-            outputStream << "[DEBUG]" << message << std::endl;
+            outputStream << "[DEBUG] " << message << std::endl;
     }
 
   private:
     std::ostream& outputStream;
 };
 
-}  // namespace log
+}  // namespace tektonik

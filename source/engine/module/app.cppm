@@ -1,6 +1,8 @@
 export module app;
 
-export namespace app
+import ecs;
+
+export namespace tektonik
 {
 
 class App

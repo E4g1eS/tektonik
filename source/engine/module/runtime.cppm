@@ -4,18 +4,21 @@ export module runtime;
 
 import app;
 
-export namespace runtime
+export namespace tektonik
 {
 
+// Stub for later handling different runtime options.
 class Runtime
 {
   public:
     struct RunOptions
     {
-        bool runTests = true;
     };
 
-    void Run(const RunOptions& runOptions = RunOptions{});
+    Runtime(const RunOptions& runOptions = RunOptions{}) {}
+
+    // Runs tests.
+    static void Test();
 
   private:
 };

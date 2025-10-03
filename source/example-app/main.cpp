@@ -1,11 +1,15 @@
-import runtime;
-import components;
+import tektonik;
 
 int main()
 {
-    runtime::Runtime().Run();
+    using S_Logger = tektonik::Singleton<tektonik::Logger>;
+    S_Logger::Init();
+    S_Logger::Get().Log<tektonik::LogLevel::Info>("Logger initialized.");
 
-    components::Transform2D random;
+    tektonik::Runtime::Test();
+
+    S_Logger::Get().Log<tektonik::LogLevel::Info>("Shutting down.");
+    S_Logger::Destroy();
 
     return 0;
 }

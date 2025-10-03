@@ -5,7 +5,7 @@ export module ecs;
 import sparse_set;
 import concepts;
 
-export namespace ecs
+export namespace tektonik::ecs
 {
 
 // Basically just an ID.
@@ -30,7 +30,7 @@ class EntityManager
 
     void DeleteEntity(Entity entity)
     {
-        assert(entity < nextMaxCreatedEntity);
+        ASSUMERT(entity < nextMaxCreatedEntity);
         unusedEntities.push_back(entity);
     }
 
@@ -86,13 +86,13 @@ class ComponentManager
         // Remove from current entity set if currently had any components.
         if (signature != ComponentSignature{})
         {
-            assert(signaturesHaveEntities.contains(signature));
-            assert(signaturesHaveEntities[signature].contains(entity));
+            ASSUMERT(signaturesHaveEntities.contains(signature));
+            ASSUMERT(signaturesHaveEntities[signature].contains(entity));
             signaturesHaveEntities[signature].erase(entity);
         }
         // Get the bit of the component.
         size_t componentBit = GetComponentTypeIndex<ComponentType>();
-        assert(componentBit < signature.size());
+        ASSUMERT(componentBit < signature.size());
         // Adjust the signature.
         signature[componentBit] = true;
         // Add to the adjusted entity set.
@@ -107,12 +107,12 @@ class ComponentManager
         // Get current signature.
         ComponentSignature& signature = GetEntityComponentSignature(entity);
         // Remove from current entity set.
-        assert(signaturesHaveEntities.contains(signature));
-        assert(signaturesHaveEntities[signature].contains(entity));
+        ASSUMERT(signaturesHaveEntities.contains(signature));
+        ASSUMERT(signaturesHaveEntities[signature].contains(entity));
         signaturesHaveEntities[signature].erase(entity);
         // Get the bit of the component.
         size_t componentBit = GetComponentTypeIndex<ComponentType>();
-        assert(componentBit < signature.size());
+        ASSUMERT(componentBit < signature.size());
         // Adjust the signature.
         signature[componentBit] = false;
         // Add to the adjusted entity set if not zero.
@@ -140,8 +140,8 @@ class ComponentManager
         };
         (removeEntityFromArray.template operator()<ComponentTypes>(), ...);
 
-        assert(signaturesHaveEntities.contains(signature));
-        assert(signaturesHaveEntities[signature].contains(entity));
+        ASSUMERT(signaturesHaveEntities.contains(signature));
+        ASSUMERT(signaturesHaveEntities[signature].contains(entity));
         signaturesHaveEntities[signature].erase(entity);
 
         entitiesHaveComponents[entity] = kNullComponentSignature;
@@ -185,7 +185,7 @@ class ComponentManager
     void InitComponent()
     {
         auto typeIndex = GetComponentTypeIndex<ComponentType>();
-        assert(!componentArrays[typeIndex] && "Components must be unique.");
+        ASSUMERT(!componentArrays[typeIndex] && "Components must be unique.");
         auto derived = std::make_unique<DerivedComponentArray<ComponentType>>();
         auto base = static_cast<IComponentArray*>(derived.release());
         componentArrays[typeIndex] = std::unique_ptr<IComponentArray>(base);
@@ -221,7 +221,7 @@ class ComponentManager
         };
 
         (getResult.template operator()<ComponentTypes>(), ...);
-        assert(allowInvalid || result != kInvalidTypeIndex);
+        ASSUMERT(allowInvalid || result != kInvalidTypeIndex);
         return result;
     }
 

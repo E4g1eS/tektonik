@@ -2,6 +2,9 @@ module;
 #include "std.hpp"
 export module sparse_set;
 
+namespace tektonik
+{
+
 // Sparse set pagination.
 // TODO restrict IndexType
 export template <typename ContainedType, typename IndexType = size_t>
@@ -25,9 +28,9 @@ class SparseSet
         if (index >= sparse.size())
             sparse.resize(index + 1, kInvalidIndex);
 
-        assert(dense.size() < sparse.size());
-        assert(IsAllocated(index));
-        assert(!Contains(index));
+        ASSUMERT(dense.size() < sparse.size());
+        ASSUMERT(IsAllocated(index));
+        ASSUMERT(!Contains(index));
 
         sparse[index] = dense.size();
         dense.push_back(DenseElement{.index = index, .value = std::move(element)});
@@ -35,8 +38,8 @@ class SparseSet
 
     void Remove(IndexType index)
     {
-        assert(IsAllocated(index));
-        assert(Contains(index));
+        ASSUMERT(IsAllocated(index));
+        ASSUMERT(Contains(index));
 
         // Repoint the sparse pointing to the last element to
         // point to the to-be-removed element.
@@ -51,13 +54,13 @@ class SparseSet
 
     ContainedType& Get(IndexType index)
     {
-        assert(Contains(index));
+        ASSUMERT(Contains(index));
         return dense[sparse[index]].value;
     }
 
     const ContainedType& Get(IndexType index) const
     {
-        assert(Contains(index));
+        ASSUMERT(Contains(index));
         return dense[sparse[index]].value;
     }
 
@@ -104,3 +107,5 @@ class SparseSet
     std::vector<IndexType> sparse{};
     std::vector<DenseElement> dense{};
 };
+
+}  // namespace tektonik

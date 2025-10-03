@@ -1,7 +1,7 @@
 export module common;
 // This module should have no dependencies.
 
-namespace common
+namespace tektonik::common
 {
 
 #ifdef NDEBUG

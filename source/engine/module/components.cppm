@@ -5,7 +5,8 @@ export module components;
 import glm;
 import ecs;
 
-namespace components
+// A collection of "default" components.
+namespace tektonik::components
 {
 
 export struct Transform2D

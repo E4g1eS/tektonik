@@ -5,7 +5,7 @@ module test;
 import sparse_set;
 import ecs;
 
-namespace test
+namespace tektonik::test
 {
 
 class TestError : public std::logic_error
