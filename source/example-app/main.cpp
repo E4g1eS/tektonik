@@ -9,7 +9,9 @@ int main(int argc, char* argv[])
     S_Logger::Init();
     S_Logger::Get().Log("Logger initialized.");
 
-    S_Logger::Get().Log(tk::util::string::ToString(tk::util::ParseCommandLineArguments(argc, argv)));
+    auto argsMap = tk::util::ParseCommandLineArgumentsToMap(argc, argv);
+
+    S_Logger::Get().Log(std::format("Command line arguments:\n", tk::util::string::ToString(argsMap)));
 
     tk::Runtime::Test();
     tk::Runtime::OpenDemoWindow();
