@@ -32,20 +32,30 @@ target_link_libraries(Engine PUBLIC glm::glm)
 target_include_directories(Engine PUBLIC "source/engine/header")
 
 # Add own modules
-file(GLOB_RECURSE OWN_MODULE_NAMES "source/engine/module/*.cppm")
+file(GLOB_RECURSE ENGINE_MODULE_NAMES "source/engine/module/*.cppm")
 target_sources(Engine
     PUBLIC
-    FILE_SET own_modules TYPE CXX_MODULES FILES
-    ${OWN_MODULE_NAMES}
+    FILE_SET engine_modules TYPE CXX_MODULES FILES
+    ${ENGINE_MODULE_NAMES}
 )
 
 # Add own implementations
-file(GLOB_RECURSE OWN_IMPLEMENTATION_NAMES "source/engine/implementation/*.cpp")
-target_sources(Engine PUBLIC ${OWN_IMPLEMENTATION_NAMES} )
+file(GLOB_RECURSE ENGINE_IMPLEMENTATION_NAMES "source/engine/implementation/*.cpp")
+target_sources(Engine PUBLIC ${ENGINE_IMPLEMENTATION_NAMES} )
 
-# ----------- End of Engine compilation -----------
+# ----------- End Engine compilation -----------
+
+# ----------- Begin ExampleApp compilation -----------
 
 add_executable(ExampleApp)
+
+# Add own modules
+file(GLOB_RECURSE EXAMPLEAPP_MODULE_NAMES "source/example-app/*.cppm")
+target_sources(ExampleApp
+    PUBLIC
+    FILE_SET exampleapp_modules TYPE CXX_MODULES FILES
+    ${EXAMPLEAPP_MODULE_NAMES}
+)
 
 # Add main source file
 target_sources(ExampleApp

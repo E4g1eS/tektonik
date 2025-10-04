@@ -10,12 +10,14 @@ import config;
 export namespace tektonik
 {
 
-// Stub for later handling different runtime options.
+// All engine code must run while a Runtime is created.
 class Runtime
 {
   public:
     struct RunOptions
     {
+        int argc = 0;
+        char** argv = nullptr;
     };
 
     Runtime(const RunOptions& runOptions = RunOptions{})

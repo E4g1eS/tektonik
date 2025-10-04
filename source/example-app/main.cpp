@@ -1,20 +1,7 @@
-#include "std.hpp"
-import tektonik;
-
-namespace tk = tektonik;
+import example_app;
 
 int main(int argc, char* argv[])
 {
-    tk::Runtime runtime = tk::Runtime();
-
-    using S_Logger = tk::Singleton<tk::Logger>;
-
-    auto argsMap = tk::util::ParseCommandLineArgumentsToMap(argc, argv);
-
-    S_Logger::Get().Log(std::format("Command line arguments:\n{}", tk::util::string::ToString(argsMap)));
-
-    runtime.Test();
-    runtime.OpenDemoWindow();
-
+    ExampleApp(argc, argv).Run();
     return 0;
 }
