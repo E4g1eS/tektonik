@@ -33,8 +33,18 @@ static_assert(StringLike<std::string_view>);
 static_assert(StringLike<char*>);
 
 export template <typename T>
-concept LoadableFromStringView = requires(T a, const std::string_view& str) {
-    { a.LoadFromStringView(str) } -> std::same_as<void>;
+concept LoadableFromStringView = requires(T obj, const std::string_view& str) {
+    { obj.LoadFromStringView(str) } -> std::same_as<void>;
+};
+
+export template <typename T>
+concept Stringable = requires(T obj) {
+    { obj.ToString() } -> std::same_as<std::string>;
+};
+
+export template <typename T>
+concept Tiable = requires(T obj) {
+    { obj.Tie() } -> InstantiatedFrom<std::tuple>;
 };
 
 }  // namespace tektonik::concepts
