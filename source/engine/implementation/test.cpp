@@ -143,8 +143,8 @@ void TestTiable()
     };
     static_assert(concepts::Tiable<TestStruct>);
 
-    TestStruct obj1{1, 2.0f, "test"};
-    TestStruct obj2{1, 2.0f, "test"};
+    TestStruct obj1{1, 2.5f, "test"};
+    TestStruct obj2{1, 2.5f, "test"};
     TestStruct obj3{2, 3.0f, "different"};
     TestAssert(obj1.Tie() == obj2.Tie(), "obj1 should be equal to obj2");
     TestAssert(obj1.Tie() != obj3.Tie(), "obj1 should not be equal to obj3");
@@ -172,6 +172,7 @@ bool RunAll()
         {TestSparseSetModifyingLastElement, "Test sparse set with touching last element"},
         {             TestComponentManager,       "Test component manager functionality"},
         {                        TestWorld,                             "Test ECS world"},
+        {                       TestTiable,                        "Test tiable concept"},
     };
 
     bool allPassed = true;

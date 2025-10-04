@@ -20,6 +20,13 @@ export class Logger
   public:
     Logger(std::ostream& outputStream = std::cout) noexcept : outputStream(outputStream) {}
 
+    template <LogLevel level = LogLevel::Info, std::size_t N>
+    void Log(const char (&message)[N])
+    {
+        LogLevel<level>();
+        std::operator<<(outputStream, message);
+    }
+    
     template <LogLevel level = LogLevel::Info>
     void Log(const Loggable auto& message)
     {
