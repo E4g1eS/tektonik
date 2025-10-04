@@ -4,14 +4,16 @@ export module logger;
 
 import common;
 import singleton;
+import concepts;
+import util;
 
 namespace tektonik
 {
 
-export enum class LogLevel { Error, Warning, Info, Debug };
+export enum class LogLevel { Error, Warning, Info, Debug, Empty };
 
 template <typename T>
-concept Loggable = requires(T obj) { std::cout << obj << std::endl; };
+concept Loggable = concepts::OutStreamable<T>;
 
 export class Logger
 {
@@ -21,17 +23,24 @@ export class Logger
     template <LogLevel level = LogLevel::Info>
     void Log(const Loggable auto& message)
     {
-        if constexpr (level == LogLevel::Error)
-            outputStream << "[ERROR] " << message << std::endl;
-        else if constexpr (level == LogLevel::Warning)
-            outputStream << "[WARNING] " << message << std::endl;
-        else if constexpr (level == LogLevel::Info)
-            outputStream << "[INFO] " << message << std::endl;
-        else if constexpr (level == LogLevel::Debug && common::kDebugBuild)
-            outputStream << "[DEBUG] " << message << std::endl;
+        LogLevel<level>();
+        outputStream << message << std::endl;
     }
 
   private:
+    template <LogLevel level>
+    void LogLevel()
+    {
+        if constexpr (level == LogLevel::Error)
+            outputStream << "[ERROR] ";
+        else if constexpr (level == LogLevel::Warning)
+            outputStream << "[WARNING] ";
+        else if constexpr (level == LogLevel::Info)
+            outputStream << "[INFO] ";
+        else if constexpr (level == LogLevel::Debug && common::kDebugBuild)
+            outputStream << "[DEBUG] ";
+    }
+
     std::ostream& outputStream;
 };
 

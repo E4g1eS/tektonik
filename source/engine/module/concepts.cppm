@@ -43,6 +43,11 @@ concept Stringable = requires(T obj) {
 };
 
 export template <typename T>
+concept OutStreamable = requires(T obj, std::ostream& os) {
+    { os << obj } -> std::same_as<std::ostream&>;
+};
+
+export template <typename T>
 concept Tiable = requires(T obj) {
     { obj.Tie() } -> InstantiatedFrom<std::tuple>;
 };

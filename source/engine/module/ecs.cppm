@@ -61,10 +61,11 @@ class EntityRange
 };
 
 template <typename T>
-concept Component = std::is_default_constructible_v<T>;
+concept Component = std::is_default_constructible_v<T> && concepts::Tiable<T>;
 
 struct DummyComponent
 {
+    auto Tie() const { return std::tie(); }
 };
 static_assert(Component<DummyComponent>);
 

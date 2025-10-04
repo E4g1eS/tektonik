@@ -6,14 +6,10 @@ import sparse_set;
 import ecs;
 import singleton;
 import logger;
+import util;
 
 namespace tektonik::test
 {
-
-namespace
-{
-using S_Logger = Singleton<Logger>;
-}
 
 class TestError : public std::logic_error
 {
@@ -81,11 +77,15 @@ void TestComponentManager()
     struct NameComponent
     {
         std::string name;
+
+        auto Tie() const { return std::tie(name); }
     };
 
     struct ValueComponent
     {
         uint32_t value;
+
+        auto Tie() const { return std::tie(value); }
     };
 
     ecs::ComponentManager<NameComponent, ValueComponent> componentManager{};
@@ -101,11 +101,15 @@ void TestWorld()
     struct NameComponent
     {
         std::string name;
+
+        auto Tie() const { return std::tie(name); }
     };
 
     struct ValueComponent
     {
         uint32_t value;
+
+        auto Tie() const { return std::tie(value); }
     };
 
     World<ecs::ComponentManager<NameComponent, ValueComponent>> world{};
@@ -125,6 +129,30 @@ void TestWorld()
         ValueComponent& valueComponent = world.GetComponentManager().GetComponent<ValueComponent>(entity);
         TestAssert(valueComponent.value == 0 || valueComponent.value == 1);
     }
+}
+
+void TestTiable()
+{
+    struct TestStruct
+    {
+        int a;
+        float b;
+        std::string c;
+
+        auto Tie() const { return std::tie(a, b, c); }
+    };
+    static_assert(concepts::Tiable<TestStruct>);
+
+    TestStruct obj1{1, 2.0f, "test"};
+    TestStruct obj2{1, 2.0f, "test"};
+    TestStruct obj3{2, 3.0f, "different"};
+    TestAssert(obj1.Tie() == obj2.Tie(), "obj1 should be equal to obj2");
+    TestAssert(obj1.Tie() != obj3.Tie(), "obj1 should not be equal to obj3");
+
+    std::stringstream ss;
+    ss << obj1;
+    std::string str = ss.str();
+    TestAssert(!str.empty());
 }
 
 }  // namespace to_run
@@ -148,18 +176,18 @@ bool RunAll()
 
     bool allPassed = true;
 
-    S_Logger::Get().Log("Running tests...");
+    Singleton<Logger>::Get().Log("Running tests...");
 
     for (const TestData& test : tests)
     {
         try
         {
             test.func();
-            S_Logger::Get().Log(std::format("Test successful '{}'.", test.name));
+            Singleton<Logger>::Get().Log(std::format("Test successful '{}'.", test.name));
         }
         catch (const TestError& testError)
         {
-            S_Logger::Get().Log<LogLevel::Error>(std::format("Test failed '{}' with: {}", test.name, testError.what()));
+            Singleton<Logger>::Get().Log<LogLevel::Error>(std::format("Test failed '{}' with: {}", test.name, testError.what()));
             allPassed = false;
         }
     }

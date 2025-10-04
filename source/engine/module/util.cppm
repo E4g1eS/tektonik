@@ -2,9 +2,39 @@ module;
 #include "std.hpp"
 export module util;
 
+// Utility functions and classes that do not fit anywhere else.
+
 import concepts;
 
-// Utility functions and classes that do not fit anywhere else.
+export template <typename... Ts>
+std::ostream& operator<<(std::ostream& os, const std::tuple<Ts...>& tuple)
+{
+    constexpr std::size_t elementCount = sizeof...(Ts);
+    os << "(";
+    std::apply(
+        [&os, &elementCount](const Ts&... tupleElements)
+        {
+            std::size_t index = 0;
+            (
+                [&os, &elementCount, &index](const auto& tupleElement)
+                {
+                    if constexpr (tektonik::concepts::Tiable<decltype(tupleElement)>)
+                        os << ToString(tupleElement.Tie());
+                    else
+                        os << tupleElement << (++index != elementCount ? ", " : "");
+                }(tupleElements),
+                ...);
+        },
+        tuple);
+    os << ")";
+    return os;
+}
+
+export std::ostream& operator<<(std::ostream& os, const tektonik::concepts::Tiable auto& tiable)
+{
+    return os << tiable.Tie();
+}
+
 namespace tektonik::util
 {
 
@@ -50,6 +80,21 @@ export std::string ToString(const std::ranges::range auto& stringRange)
     return ss.str();
 }
 
+template <typename... Ts>
+std::string ToString(const std::tuple<Ts...>& tuple)
+{
+    std::stringstream ss;
+    ss << tuple;
+    return ss.str();
+}
+
+export std::string ToString(const concepts::Tiable auto& tiable)
+{
+    std::stringstream ss;
+    ss << tiable;
+    return ss.str();
+}
+
 export template <typename KeyType, typename ValueType>
 std::string ToString(const std::unordered_map<KeyType, ValueType>& map)
 {
@@ -83,13 +128,11 @@ std::string ToCaseFromStringView(const std::string_view& str)
 export template <Case caseConvert>
 std::string ToCase(const concepts::StaticCastableTo<std::string_view> auto& str)
 {
-    if constexpr (std::is_same_v < decltype(str), const std::string_view&>)
+    if constexpr (std::is_same_v<decltype(str), const std::string_view&>)
         return ToCaseFromStringView<caseConvert>(str);
     else
         return ToCaseFromStringView<caseConvert>(static_cast<std::string_view>(str));
 }
-
-
 
 }  // namespace string
 
