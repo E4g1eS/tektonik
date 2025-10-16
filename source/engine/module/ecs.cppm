@@ -28,6 +28,7 @@ class EntityManager
         }
     }
 
+
     void DeleteEntity(Entity entity)
     {
         ASSUMERT(entity < nextMaxCreatedEntity);
