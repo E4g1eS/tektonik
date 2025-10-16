@@ -208,7 +208,7 @@ class ComponentManager
     }
 
     template <Component ComponentType>
-    consteval size_t GetComponentTypeIndex(bool allowInvalid = false)
+    constexpr size_t GetComponentTypeIndex(bool allowInvalid = false)
     {
         size_t result = kInvalidTypeIndex;
         size_t componentIndex = 0;
@@ -227,7 +227,7 @@ class ComponentManager
     }
 
     template <Component... SelectedComponentTypes>
-    consteval ComponentSignature GetSignatureFromComponents()
+    constexpr ComponentSignature GetSignatureFromComponents()
     {
         auto signature = ComponentSignature{};
         ((signature[GetComponentTypeIndex<SelectedComponentTypes>()] = true), ...);
