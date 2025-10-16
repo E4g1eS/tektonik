@@ -23,6 +23,43 @@ void TestAssert(bool condition, const std::string& errorMessage = "Unspecified e
         throw TestError(errorMessage);
 }
 
+struct TestData
+{
+    std::function<void(void)> func;
+    std::string name;
+};
+
+std::vector<TestData>& GetGlobalVector()
+{
+    static std::vector<TestData> globalVector;
+    return globalVector;
+}
+
+inline void AddToGlobalVector(const TestData& elem)
+{
+    volatile static bool initialized = [&elem]()
+    {
+        GetGlobalVector().push_back(elem);
+        return true;
+    }();
+    (void)initialized;  // quiet unused variable warning
+}
+
+bool throwawayValue = true;
+
+// Usage at global scope wrapped in macro for convenience
+#define ADD_TO_GLOBAL_VECTOR(elem) throwawayValue = []() { AddToGlobalVector(elem);  return true; }();
+
+#define ADD_FUNC(funcName)                                 \
+    void funcName();                                       \
+    ADD_TO_GLOBAL_VECTOR((TestData{funcName, #funcName})); \
+    void funcName()
+
+ADD_FUNC(TestTheTest)
+{
+    std::cout << "works" << std::endl;
+}
+
 // Here are all the tests that should be run.
 namespace to_run
 {
@@ -159,11 +196,7 @@ void TestTiable()
 
 bool RunAll()
 {
-    struct TestData
-    {
-        std::function<void(void)> func;
-        std::string name;
-    };
+    auto& vec = GetGlobalVector();
 
     using namespace to_run;
 
