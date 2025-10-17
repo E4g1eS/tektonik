@@ -6,33 +6,21 @@ export module util;
 
 import concepts;
 
-export template <typename... Ts>
-std::ostream& operator<<(std::ostream& os, const std::tuple<Ts...>& tuple)
+template <typename T>
+concept FormattableButNotOutStreamable = std::formattable<T, char> && !requires(T obj, std::ostream& os) {
+    { os << obj } -> std::same_as<std::ostream&>;
+};
+
+export std::ostream& operator<<(std::ostream& os, const FormattableButNotOutStreamable auto& onlyFormattable)
 {
-    constexpr std::size_t elementCount = sizeof...(Ts);
-    os << "(";
-    std::apply(
-        [&os, &elementCount](const Ts&... tupleElements)
-        {
-            std::size_t index = 0;
-            (
-                [&os, &elementCount, &index](const auto& tupleElement)
-                {
-                    if constexpr (tektonik::concepts::Tiable<decltype(tupleElement)>)
-                        os << ToString(tupleElement.Tie());
-                    else
-                        os << tupleElement << (++index != elementCount ? ", " : "");
-                }(tupleElements),
-                ...);
-        },
-        tuple);
-    os << ")";
+    std::format_to(std::ostream_iterator<char>(os), "{}", onlyFormattable);
     return os;
 }
 
 export std::ostream& operator<<(std::ostream& os, const tektonik::concepts::Tiable auto& tiable)
 {
-    return os << tiable.Tie();
+    std::format_to(std::ostream_iterator<char>(os), "{}", tiable.Tie());
+    return os;
 }
 
 namespace tektonik::util
@@ -43,26 +31,9 @@ namespace string
 
 export std::string_view Trim(const std::string_view& str, const std::locale& locale = std::locale::classic());
 
-export std::vector<std::string_view> ParseCommandLineArgumentsToVector(int argc, const char* argv[]);
+export std::vector<std::string_view> ParseCommandLineArgumentsToVector(int argc, char* argv[]);
 
-export std::unordered_map<std::string_view, std::string_view> ParseCommandLineArgumentsToMap(int argc, const char* argv[]);
-
-export std::string ToString(const std::ranges::range auto& stringRange)
-{
-    std::stringstream ss;
-    for (const auto& string : stringRange)
-        ss << string << "\n";
-
-    return ss.str();
-}
-
-template <typename... Ts>
-std::string ToString(const std::tuple<Ts...>& tuple)
-{
-    std::stringstream ss;
-    ss << tuple;
-    return ss.str();
-}
+export std::unordered_map<std::string_view, std::string_view> ParseCommandLineArgumentsToMap(int argc, char* argv[]);
 
 export std::string ToString(const concepts::Tiable auto& tiable)
 {
@@ -71,14 +42,9 @@ export std::string ToString(const concepts::Tiable auto& tiable)
     return ss.str();
 }
 
-export template <typename KeyType, typename ValueType>
-std::string ToString(const std::unordered_map<KeyType, ValueType>& map)
+export std::string ToString(const std::formattable auto& formattable)
 {
-    std::stringstream ss;
-    for (const auto& [key, value] : map)
-        ss << key << " = " << value << "\n";
-
-    return ss.str();
+    return std::format("{}", formattable);
 }
 
 export enum class Case {

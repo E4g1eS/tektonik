@@ -20,9 +20,7 @@ class Runtime
         char** argv = nullptr;
     };
 
-    Runtime(const RunOptions& runOptions = RunOptions{})
-    {
-    }
+    Runtime(const RunOptions& runOptions = RunOptions{});
     Runtime(const Runtime&) = delete;
     Runtime& operator=(const Runtime&) = delete;
 

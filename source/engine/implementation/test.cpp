@@ -183,6 +183,11 @@ ADD_TEST_FUNC(TestTiable)
     ss << obj1;
     std::string str = ss.str();
     TestAssert(!str.empty());
+
+    std::stringstream ss2;
+    ss2 << obj1.Tie();
+    std::string str2 = ss2.str();
+    TestAssert(!str2.empty());
 }
 
 ADD_TEST_FUNC(TestSdl)
@@ -237,16 +242,18 @@ ADD_TEST_FUNC(TestCommandLineParsing)
         "--flag",
     };
     int argc = sizeof(argv) / sizeof(argv[0]);
-    auto argsVector = util::string::ParseCommandLineArgumentsToVector(argc, argv);
+    auto argsVector = util::string::ParseCommandLineArgumentsToVector(argc, const_cast<char**>(argv));
     TestAssert(argsVector.size() == 3, "Argument vector size mismatch.");
     TestAssert(argsVector[0] == "--option1=value1", "Argument vector parsing failed for option1.");
     TestAssert(argsVector[1] == "-o2=value2", "Argument vector parsing failed for option2.");
     TestAssert(argsVector[2] == "--flag", "Argument vector parsing failed for flag.");
-    auto argsMap = util::string::ParseCommandLineArgumentsToMap(argc, argv);
+    auto argsMap = util::string::ParseCommandLineArgumentsToMap(argc, const_cast<char**>(argv));
     TestAssert(argsMap.size() == 3, "Argument map size mismatch.");
     TestAssert(argsMap["option1"] == "value1", "Argument map parsing failed for option1.");
     TestAssert(argsMap["o2"] == "value2", "Argument map parsing failed for option2.");
     TestAssert(argsMap["flag"] == "", "Argument map parsing failed for flag.");
+
+    std::string toString = std::format("Parsed arguments: {}", argsMap);
 }
 
 bool RunAll()

@@ -27,7 +27,7 @@ std::string_view Trim(const std::string_view& str, const std::locale& locale)
     return str.substr(offset, count);
 }
 
-std::vector<std::string_view> ParseCommandLineArgumentsToVector(int argc, const char* argv[])
+std::vector<std::string_view> ParseCommandLineArgumentsToVector(int argc, char* argv[])
 {
     ASSUMERT(argc >= 1);
 
@@ -38,7 +38,7 @@ std::vector<std::string_view> ParseCommandLineArgumentsToVector(int argc, const 
     return args;
 }
 
-std::unordered_map<std::string_view, std::string_view> ParseCommandLineArgumentsToMap(int argc, const char* argv[])
+std::unordered_map<std::string_view, std::string_view> ParseCommandLineArgumentsToMap(int argc, char* argv[])
 {
     std::vector<std::string_view> argsVector = ParseCommandLineArgumentsToVector(argc, argv);
     std::unordered_map<std::string_view, std::string_view> argsMap;
