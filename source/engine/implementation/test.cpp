@@ -46,7 +46,7 @@ std::vector<TestData>& GetTestsVector()
     }();                                                           \
     void funcName()
 #else
-#define ADD_TEST_FUNC(funcName)
+#define ADD_TEST_FUNC(funcName) void funcName()
 #endif
 
 ADD_TEST_FUNC(TestTheTest)
