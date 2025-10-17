@@ -1,7 +1,8 @@
-import example_app;
+import tektonik;
 
 int main(int argc, char* argv[])
 {
-    ExampleApp(argc, argv).Run();
+    tektonik::Runtime runtime = tektonik::Runtime(tektonik::Runtime::RunOptions{.argc = argc, .argv = argv});
+    runtime.Test();
     return 0;
 }
