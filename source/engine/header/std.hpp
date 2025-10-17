@@ -45,4 +45,8 @@
 #define DEBUG_ONLY(code) code
 #endif
 
+#ifdef NDEBUG
+#define DONT_COMPILE_TESTS
+#endif
+
 #endif

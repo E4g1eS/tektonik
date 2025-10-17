@@ -28,7 +28,6 @@ class Runtime
 
     // Runs tests.
     void Test() const;
-    void OpenDemoWindow() const;
 
   private:
     Singleton<Logger> logger;

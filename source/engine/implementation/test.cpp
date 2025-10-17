@@ -1,5 +1,6 @@
 module;
 #include "std.hpp"
+#include "sdl-wrapper.hpp"
 module test;
 
 import sparse_set;
@@ -179,6 +180,22 @@ ADD_TEST_FUNC(TestTiable)
     ss << obj1;
     std::string str = ss.str();
     TestAssert(!str.empty());
+}
+
+ADD_TEST_FUNC(TestSdl)
+{
+    TestAssert(SDL_Init(SDL_INIT_VIDEO), std::format("SDL_Init failed with: ''", SDL_GetError()));
+
+    SDL_Window* window = SDL_CreateWindow("SDL3 Minimal Example", 800, 600, SDL_WINDOW_VULKAN);
+    TestAssert(window, std::format("SDL_CreateWindow failed with: ''", SDL_GetError()));
+
+    SDL_Event event;
+    constexpr int kRunForThisManyTicks = 100;
+    for (int i = 0; i < kRunForThisManyTicks; ++i)
+        SDL_PollEvent(&event);
+
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 }
 
 bool RunAll()

@@ -24,7 +24,6 @@ export class ExampleApp
     void Run()
     {
         runtime.Test();
-        runtime.OpenDemoWindow();
     }
 
   private:
