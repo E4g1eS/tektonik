@@ -25,6 +25,7 @@ export class Logger
     {
         LogLevel<level>();
         std::operator<<(outputStream, message);
+        std::cout << std::endl;
     }
     
     template <LogLevel level = LogLevel::Info>

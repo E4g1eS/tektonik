@@ -29,42 +29,31 @@ struct TestData
     std::string name;
 };
 
-std::vector<TestData>& GetGlobalVector()
+std::vector<TestData>& GetTestsVector()
 {
     static std::vector<TestData> globalVector;
     return globalVector;
 }
 
-inline void AddToGlobalVector(const TestData& elem)
-{
-    volatile static bool initialized = [&elem]()
-    {
-        GetGlobalVector().push_back(elem);
-        return true;
-    }();
-    (void)initialized;  // quiet unused variable warning
-}
-
-bool throwawayValue = true;
-
-// Usage at global scope wrapped in macro for convenience
-#define ADD_TO_GLOBAL_VECTOR(elem) throwawayValue = []() { AddToGlobalVector(elem);  return true; }();
-
-#define ADD_FUNC(funcName)                                 \
-    void funcName();                                       \
-    ADD_TO_GLOBAL_VECTOR((TestData{funcName, #funcName})); \
+#ifndef DONT_COMPILE_TESTS
+#define ADD_TEST_FUNC(funcName)                                         \
+    void funcName();                                               \
+    static bool init_##funcName = []()                             \
+    {                                                              \
+        GetTestsVector().push_back(TestData{funcName, #funcName}); \
+        return true;                                               \
+    }();                                                           \
     void funcName()
+#else
+#define ADD_TEST_FUNC(funcName)
+#endif
 
-ADD_FUNC(TestTheTest)
+ADD_TEST_FUNC(TestTheTest)
 {
-    std::cout << "works" << std::endl;
+    TestAssert(true, "This should never fail.");
 }
 
-// Here are all the tests that should be run.
-namespace to_run
-{
-
-void TestSparseSetSimple()
+ADD_TEST_FUNC(TestSparseSetSimple)
 {
     auto sparseSet = SparseSet<std::string>(10);
 
@@ -88,7 +77,7 @@ void TestSparseSetSimple()
     TestAssert(!sparseSet.Contains(4));
 }
 
-void TestSparseSetModifyingLastElement()
+ADD_TEST_FUNC(TestSparseSetModifyingLastElement)
 {
     auto sparseSet = SparseSet<std::string>(10);
 
@@ -109,7 +98,7 @@ void TestSparseSetModifyingLastElement()
     checkValidity();
 }
 
-void TestComponentManager()
+ADD_TEST_FUNC(TestComponentManager)
 {
     struct NameComponent
     {
@@ -131,7 +120,7 @@ void TestComponentManager()
     componentManager.RemoveComponent<ValueComponent>(5);
 }
 
-void TestWorld()
+ADD_TEST_FUNC(TestWorld)
 {
     using namespace ecs;
 
@@ -168,7 +157,7 @@ void TestWorld()
     }
 }
 
-void TestTiable()
+ADD_TEST_FUNC(TestTiable)
 {
     struct TestStruct
     {
@@ -192,21 +181,11 @@ void TestTiable()
     TestAssert(!str.empty());
 }
 
-}  // namespace to_run
-
 bool RunAll()
 {
-    auto& vec = GetGlobalVector();
-
-    using namespace to_run;
-
-    std::vector<TestData> tests = {
-        {              TestSparseSetSimple,                            "Test sparse set"},
-        {TestSparseSetModifyingLastElement, "Test sparse set with touching last element"},
-        {             TestComponentManager,       "Test component manager functionality"},
-        {                        TestWorld,                             "Test ECS world"},
-        {                       TestTiable,                        "Test tiable concept"},
-    };
+    auto& tests = GetTestsVector();
+    if (tests.empty())
+        return true;
 
     bool allPassed = true;
 
