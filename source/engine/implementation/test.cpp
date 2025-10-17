@@ -18,10 +18,13 @@ class TestError : public std::logic_error
     TestError(const std::string& message) : std::logic_error(message) {}
 };
 
-void TestAssert(bool condition, const std::string& errorMessage = "Unspecified error")
+void TestAssert(
+    bool condition,
+    const std::string& errorMessage = "Unspecified error",
+    const std::source_location& location = std::source_location::current())
 {
     if (!condition)
-        throw TestError(errorMessage);
+        throw TestError(std::format("Assert failed: '{}' on line {}.", errorMessage, location.line()));
 }
 
 struct TestData
@@ -196,6 +199,54 @@ ADD_TEST_FUNC(TestSdl)
 
     SDL_DestroyWindow(window);
     SDL_Quit();
+}
+
+ADD_TEST_FUNC(TestStringTrim)
+{
+    std::string str1 = "   Hello, World!   ";
+    std::string str2 = "Hello, World!";
+    auto trimmed1 = util::string::Trim(str1);
+    TestAssert(trimmed1 == str2, "String trimming failed.");
+    std::string str3 = "\n\t  Trim me! \t\n";
+    std::string str4 = "Trim me!";
+    auto trimmed2 = util::string::Trim(str3);
+    TestAssert(trimmed2 == str4, "String trimming with newlines and tabs failed.");
+    std::string str5 = "      ";
+    std::string str6 = "";
+    auto trimmed3 = util::string::Trim(str5);
+    TestAssert(trimmed3 == str6, "String trimming of all-whitespace string failed.");
+    std::string str7 = "NoTrimNeeded";
+    auto trimmed4 = util::string::Trim(str7);
+    TestAssert(trimmed4 == str7, "String trimming altered a string that needed no trimming.");
+    std::string str8 = "  Only prefix";
+    std::string str9 = "Only prefix";
+    auto trimmed5 = util::string::Trim(str8);
+    TestAssert(trimmed5 == str9, "String trimming of prefix-only whitespace failed.");
+    std::string str10 = "Suffix only   ";
+    std::string str11 = "Suffix only";
+    auto trimmed6 = util::string::Trim(str10);
+    TestAssert(trimmed6 == str11, "String trimming of suffix-only whitespace failed.");
+}
+
+ADD_TEST_FUNC(TestCommandLineParsing)
+{
+    const char* argv[] = {
+        "program",
+        "--option1=value1",
+        "-o2=value2",
+        "--flag",
+    };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    auto argsVector = util::string::ParseCommandLineArgumentsToVector(argc, argv);
+    TestAssert(argsVector.size() == 3, "Argument vector size mismatch.");
+    TestAssert(argsVector[0] == "--option1=value1", "Argument vector parsing failed for option1.");
+    TestAssert(argsVector[1] == "-o2=value2", "Argument vector parsing failed for option2.");
+    TestAssert(argsVector[2] == "--flag", "Argument vector parsing failed for flag.");
+    auto argsMap = util::string::ParseCommandLineArgumentsToMap(argc, argv);
+    TestAssert(argsMap.size() == 3, "Argument map size mismatch.");
+    TestAssert(argsMap["option1"] == "value1", "Argument map parsing failed for option1.");
+    TestAssert(argsMap["o2"] == "value2", "Argument map parsing failed for option2.");
+    TestAssert(argsMap["flag"] == "", "Argument map parsing failed for flag.");
 }
 
 bool RunAll()

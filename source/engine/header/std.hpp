@@ -18,6 +18,7 @@
 #include <queue>
 #include <ranges>
 #include <set>
+#include <source_location>
 #include <sstream>
 #include <string>
 #include <string_view>
