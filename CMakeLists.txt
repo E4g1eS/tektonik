@@ -28,6 +28,19 @@ target_sources(Engine
 )
 target_link_libraries(Engine PUBLIC glm::glm)
 
+# ImGUI
+target_include_directories(Engine PRIVATE "external/imgui")
+file(GLOB IMGUI_SOURCES "external/imgui/*.cpp")
+target_sources(Engine PRIVATE
+    ${IMGUI_SOURCES}
+    "external/imgui/backends/imgui_impl_vulkan.cpp"
+    "external/imgui/backends/imgui_impl_sdl3.cpp"
+)
+
+# Vulkan
+find_package(Vulkan REQUIRED)
+target_link_libraries(Engine PRIVATE Vulkan::Vulkan)
+
 # Add own headers
 target_include_directories(Engine PUBLIC "source/engine/header")
 
