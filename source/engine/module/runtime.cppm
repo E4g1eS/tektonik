@@ -6,6 +6,7 @@ import app;
 import logger;
 import singleton;
 import config;
+import config_renderer;
 
 export namespace tektonik
 {
@@ -30,6 +31,7 @@ class Runtime
   private:
     Singleton<Logger> logger;
     Singleton<config::Manager> configManager;
+    Singleton<config::Renderer> configRenderer;
 };
 
 }  // namespace tektonik
