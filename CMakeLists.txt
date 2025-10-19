@@ -5,7 +5,13 @@ project(Tektonik)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# modules
+set(CMAKE_EXPERIMENTAL_CXX_MODULE_CMAKE_API TRUE)
+set(CMAKE_EXPERIMENTAL_CXX_MODULE_DYNDEP 1)
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+
 add_library(Engine)
+target_compile_features(Engine PUBLIC cxx_std_23)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
@@ -39,7 +45,26 @@ target_sources(Engine PUBLIC
 
 # Vulkan
 find_package(Vulkan REQUIRED)
+message(STATUS "[Vulkan] Found package: ${Vulkan_FOUND}")
+message(STATUS "[Vulkan] Version: ${Vulkan_VERSION}")
+message(STATUS "[Vulkan] Include dirs: ${Vulkan_INCLUDE_DIR}")
+
 target_link_libraries(Engine PUBLIC Vulkan::Vulkan)
+
+## TODO
+add_library(VulkanModule)
+target_compile_features(VulkanModule PUBLIC cxx_std_23)
+target_link_libraries(VulkanModule PUBLIC Vulkan::Vulkan)
+target_include_directories(VulkanModule PUBLIC ${Vulkan_INCLUDE_DIR})
+target_sources(VulkanModule
+    PUBLIC
+    FILE_SET cxx_modules TYPE CXX_MODULES
+    BASE_DIRS ${Vulkan_INCLUDE_DIR}
+    FILES "${Vulkan_INCLUDE_DIR}/vulkan/vulkan.cppm"
+)
+target_link_libraries(Engine PUBLIC VulkanModule)
+## end TODO
+
 
 # Add own headers
 target_include_directories(Engine PUBLIC "source/engine/header")
@@ -48,8 +73,8 @@ target_include_directories(Engine PUBLIC "source/engine/header")
 file(GLOB_RECURSE ENGINE_MODULE_NAMES "source/engine/module/*.cppm")
 target_sources(Engine
     PUBLIC
-    FILE_SET engine_modules TYPE CXX_MODULES FILES
-    ${ENGINE_MODULE_NAMES}
+    FILE_SET engine_modules TYPE CXX_MODULES
+    FILES ${ENGINE_MODULE_NAMES}
 )
 
 # Add own implementations
@@ -66,8 +91,8 @@ add_executable(ExampleApp)
 file(GLOB_RECURSE EXAMPLEAPP_MODULE_NAMES "source/example-app/*.cppm")
 target_sources(ExampleApp
     PUBLIC
-    FILE_SET exampleapp_modules TYPE CXX_MODULES FILES
-    ${EXAMPLEAPP_MODULE_NAMES}
+    FILE_SET exampleapp_modules TYPE CXX_MODULES
+    FILES ${EXAMPLEAPP_MODULE_NAMES}
 )
 
 # Add main source file
