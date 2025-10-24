@@ -51,21 +51,6 @@ message(STATUS "[Vulkan] Include dirs: ${Vulkan_INCLUDE_DIR}")
 
 target_link_libraries(Engine PUBLIC Vulkan::Vulkan)
 
-## TODO
-add_library(VulkanModule)
-target_compile_features(VulkanModule PUBLIC cxx_std_23)
-target_link_libraries(VulkanModule PUBLIC Vulkan::Vulkan)
-target_include_directories(VulkanModule PUBLIC ${Vulkan_INCLUDE_DIR})
-target_sources(VulkanModule
-    PUBLIC
-    FILE_SET cxx_modules TYPE CXX_MODULES
-    BASE_DIRS ${Vulkan_INCLUDE_DIR}
-    FILES "${Vulkan_INCLUDE_DIR}/vulkan/vulkan.cppm"
-)
-target_link_libraries(Engine PUBLIC VulkanModule)
-## end TODO
-
-
 # Add own headers
 target_include_directories(Engine PUBLIC "source/engine/header")
 

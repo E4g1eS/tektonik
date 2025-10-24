@@ -31,7 +31,7 @@ class Runtime
   private:
     Singleton<Logger> logger;
     Singleton<config::Manager> configManager;
-    Singleton<config::Renderer> configRenderer;
+    config::Renderer configRenderer;
 };
 
 }  // namespace tektonik

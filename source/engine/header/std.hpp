@@ -6,6 +6,7 @@
 #include <array>
 #include <bitset>
 #include <cassert>
+#include <compare>
 #include <concepts>
 #include <exception>
 #include <format>
