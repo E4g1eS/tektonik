@@ -161,14 +161,14 @@ void Renderer::Init(bool launchThread)
 
 void Renderer::Stop()
 {
-    Singleton<Logger>::Get().Log("Stopping config renderer loop...");
-
-    loopThread.request_stop();
-    ASSUMERT(loopThread.joinable());
-    loopThread.join();
-
-    Singleton<Logger>::Get().Log("Config renderer loop joined.");
-
+    if (loopThread.joinable())
+    {
+        Singleton<Logger>::Get().Log("Stopping config renderer loop...");
+        loopThread.request_stop();
+        loopThread.join();
+        Singleton<Logger>::Get().Log("Config renderer loop joined.");
+    }
+    
     vulkanBackend.device.waitIdle();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();
