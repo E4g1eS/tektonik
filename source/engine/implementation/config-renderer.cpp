@@ -6,6 +6,7 @@ module;
 module config_renderer;
 
 import singleton;
+import util;
 import logger;
 
 namespace tektonik::config
@@ -94,23 +95,86 @@ vk::raii::RenderPass CreateRenderPass(const vk::raii::Device& device)
     return device.createRenderPass(createInfo);
 }
 
-void InitVulkanBackend(VulkanBackend& vulkanBackend)
+bool AreLayersSupported(const vk::raii::Context& context, const std::ranges::range auto& wantedLayers)
 {
-    vulkanBackend.instance = vulkanBackend.context.createInstance(vk::InstanceCreateInfo{});
+    auto remainingWantedLayers = std::unordered_set<std::string_view>(wantedLayers.begin(), wantedLayers.end());
+
+    for (const auto& availableLayer : context.enumerateInstanceLayerProperties())
+        remainingWantedLayers.erase(availableLayer.layerName);
+
+    for (const auto& remainingWantedLayer : remainingWantedLayers)
+        Singleton<Logger>::Get().Log<LogLevel::Warning>(std::format("Wanted layer: '{}' is not available.", remainingWantedLayer));
+
+    return remainingWantedLayers.empty();
+}
+
+bool AreExtensionsSupported(const vk::raii::Context& context, const std::ranges::range auto& wantedExtensions)
+{
+    auto remainingWantedExtensions = std::unordered_set<std::string_view>(wantedExtensions.begin(), wantedExtensions.end());
+
+    for (const auto& availableExtension : context.enumerateInstanceExtensionProperties())
+        remainingWantedExtensions.erase(availableExtension.extensionName);
+
+    for (const auto& remainingWantedExtension : remainingWantedExtensions)
+        Singleton<Logger>::Get().Log<LogLevel::Warning>(std::format("Wanted extension: '{}' is not available.", remainingWantedExtension));
+
+    return true;
+}
+
+vk::raii::Instance CreateInstance(const vk::raii::Context& context)
+{
+    vk::ApplicationInfo applicationInfo{
+        .pApplicationName = "Config Renderer",
+        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .pEngineName = "No Engine",
+        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+        .apiVersion = VK_API_VERSION_1_0,
+    };
+
+    uint32_t extensionCount = 0;
+    auto extensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+
+    if (!AreExtensionsSupported(context, util::ranges::MakeVector<decltype(extensions), std::string_view>(extensions, extensionCount)))
+        throw std::runtime_error("Extensions are not supported");
+
+    vk::InstanceCreateInfo instanceCreateInfo{
+        .pApplicationInfo = &applicationInfo,
+        .enabledExtensionCount = extensionCount,
+        .ppEnabledExtensionNames = extensions,
+    };
+
+    const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+    if (AreLayersSupported(context, validationLayers))
+    {
+        instanceCreateInfo.enabledLayerCount = validationLayers.size();
+        instanceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+    }
+
+    return context.createInstance(instanceCreateInfo);
+}
+
+void InitVulkanBackend(VulkanBackend& vulkanBackend, SDL_Window* window)
+{
+    vulkanBackend.instance = CreateInstance(vulkanBackend.context);
 
     std::vector<vk::raii::PhysicalDevice> physicalDevices = vulkanBackend.instance.enumeratePhysicalDevices();
     ASSUMERT(physicalDevices.size() >= 1);
     vulkanBackend.physicalDevice = physicalDevices[0];  // TODO
 
     vulkanBackend.queueFamily = GetGraphicsQueueFamily(vulkanBackend.physicalDevice);
-    vk::DeviceQueueCreateInfo queueCreateInfo{.queueFamilyIndex = vulkanBackend.queueFamily, .queueCount = 1};
+    float queuePriority = 1.0f;
+    vk::DeviceQueueCreateInfo queueCreateInfo{.queueFamilyIndex = vulkanBackend.queueFamily, .queueCount = 1, .pQueuePriorities = &queuePriority};
     vulkanBackend.device = vulkanBackend.physicalDevice.createDevice(
         vk::DeviceCreateInfo{
             .queueCreateInfoCount = 1,
             .pQueueCreateInfos = &queueCreateInfo,
         });
-
     vulkanBackend.queue = vulkanBackend.device.getQueue(vulkanBackend.queueFamily, 0);
+
+    VkSurfaceKHR surface;
+    if (!SDL_Vulkan_CreateSurface(window, *vulkanBackend.instance, nullptr, &surface))
+        throw std::runtime_error("Could not create a Vulkan surface.");
+
     vulkanBackend.renderPass = CreateRenderPass(vulkanBackend.device);
     vulkanBackend.commandPool = vulkanBackend.device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = vulkanBackend.queueFamily});
     auto commandBuffers = vulkanBackend.device.allocateCommandBuffers(
@@ -132,7 +196,7 @@ void Renderer::Init(bool launchThread)
 
     ImGui_ImplSDL3_InitForVulkan(window);
 
-    InitVulkanBackend(vulkanBackend);
+    InitVulkanBackend(vulkanBackend, window);
     ImGui_ImplVulkan_InitInfo vulkanInitInfo{
         .ApiVersion = VK_API_VERSION_1_0,
         .Instance = *vulkanBackend.instance,
@@ -168,7 +232,7 @@ void Renderer::Stop()
         loopThread.join();
         Singleton<Logger>::Get().Log("Config renderer loop joined.");
     }
-    
+
     vulkanBackend.device.waitIdle();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();

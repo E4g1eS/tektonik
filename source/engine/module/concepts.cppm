@@ -52,4 +52,7 @@ concept Tiable = requires(T obj) {
     { obj.Tie() } -> InstantiatedFrom<std::tuple>;
 };
 
+export template <typename T>
+concept Pointer = std::is_pointer_v<T>;
+
 }  // namespace tektonik::concepts

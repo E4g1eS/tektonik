@@ -26,6 +26,22 @@ export std::ostream& operator<<(std::ostream& os, const tektonik::concepts::Tiab
 namespace tektonik::util
 {
 
+namespace ranges
+{
+
+export template <concepts::Pointer ValuePointer, typename TargetType = std::remove_pointer_t<ValuePointer>>
+auto MakeVector(ValuePointer pointer, size_t count)
+{
+    std::vector<TargetType> vec;
+    vec.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+        vec.push_back(static_cast<TargetType>(pointer[i]));
+
+    return vec;
+}
+
+}  // namespace ranges
+
 namespace string
 {
 
