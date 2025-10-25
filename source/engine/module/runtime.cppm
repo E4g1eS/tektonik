@@ -7,6 +7,7 @@ import logger;
 import singleton;
 import config;
 import config_renderer;
+import sdl_runtime;
 
 export namespace tektonik
 {
@@ -21,17 +22,22 @@ class Runtime
         char** argv = nullptr;
     };
 
-    Runtime(const RunOptions& runOptions = RunOptions{});
+    Runtime(const RunOptions& runOptions = RunOptions{}) : runOptions(runOptions) {}
     Runtime(const Runtime&) = delete;
     Runtime& operator=(const Runtime&) = delete;
+
+    void Init();
 
     // Runs tests.
     void Test() const;
 
   private:
+    const RunOptions runOptions;
     Singleton<Logger> logger;
     Singleton<config::Manager> configManager;
+    SdlRuntime sdlRuntime;
     config::Renderer configRenderer;
+    std::jthread configRendererThread;
 };
 
 }  // namespace tektonik

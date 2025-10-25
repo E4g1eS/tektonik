@@ -1,4 +1,5 @@
 module;
+#include "sdl-wrapper.hpp"
 #include "std.hpp"
 #include "vulkan-wrapper.hpp"
 export module config_renderer;
@@ -11,8 +12,8 @@ struct VulkanBackend
     vk::raii::Context context{};
     vk::raii::Instance instance{nullptr};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
-    vk::raii::Device device{nullptr};
     uint32_t queueFamily{};
+    vk::raii::Device device{nullptr};
     vk::raii::Queue queue{nullptr};
     vk::raii::RenderPass renderPass{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
@@ -28,8 +29,11 @@ export class Renderer
 
     void Init();
 
+    void Loop(std::stop_token stopToken);
+
   private:
-    VulkanBackend vulkanBackend;
+    SDL_Window* window = nullptr;
+    VulkanBackend vulkanBackend{};
 };
 
 }  // namespace tektonik::config

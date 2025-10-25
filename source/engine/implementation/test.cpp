@@ -203,7 +203,6 @@ ADD_TEST_FUNC(TestSdl)
         SDL_PollEvent(&event);
 
     SDL_DestroyWindow(window);
-    SDL_Quit();
 }
 
 ADD_TEST_FUNC(TestStringTrim)
