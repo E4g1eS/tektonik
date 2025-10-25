@@ -19,7 +19,6 @@ void Runtime::Init()
     Singleton<Logger>::Get().Log(std::format("Loaded command line arguments: {}", argMap));
 
     configRenderer.Init();
-    configRendererThread = std::jthread([this](std::stop_token stopToken) { configRenderer.Loop(stopToken); });
 
     SDL_Event event;
     while (true)
@@ -29,11 +28,7 @@ void Runtime::Init()
             break;
     }
 
-    configRendererThread.request_stop();
-    ASSUMERT(configRendererThread.joinable());
-    configRendererThread.join();
-
-    Singleton<Logger>::Get().Log("Config renderer thread joined.");
+    configRenderer.Stop();
 }
 
 void Runtime::Test() const

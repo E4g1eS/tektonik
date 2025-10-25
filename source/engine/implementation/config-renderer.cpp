@@ -122,7 +122,7 @@ void InitVulkanBackend(VulkanBackend& vulkanBackend)
     vulkanBackend.commandBuffer = std::move(commandBuffers[0]);
 }
 
-void Renderer::Init()
+void Renderer::Init(bool launchThread)
 {
     SDL_Init(SDL_INIT_VIDEO);
     window = SDL_CreateWindow("ImGui + SDL + Vulkan", 1280, 720, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
@@ -154,34 +154,46 @@ void Renderer::Init()
         .CustomShaderFragCreateInfo = vk::ShaderModuleCreateInfo{.sType = static_cast<vk::StructureType>(std::numeric_limits<uint32_t>::max())},
     };
     ImGui_ImplVulkan_Init(&vulkanInitInfo);
+
+    if (launchThread)
+        loopThread = std::jthread([this](std::stop_token stopToken) { Loop(stopToken); });
 }
 
-void Renderer::Loop(std::stop_token stopToken)
+void Renderer::Stop()
 {
-    while (!stopToken.stop_requested())
-    {
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplSDL3_NewFrame();
-        ImGui::NewFrame();
-
-        ImGui::Begin("Example Window");
-        ImGui::Text("Hello from ImGui with Vulkan!");
-        ImGui::End();
-
-        ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *vulkanBackend.commandBuffer);
-    }
-
     Singleton<Logger>::Get().Log("Stopping config renderer loop...");
+
+    loopThread.request_stop();
+    ASSUMERT(loopThread.joinable());
+    loopThread.join();
+
+    Singleton<Logger>::Get().Log("Config renderer loop joined.");
 
     vulkanBackend.device.waitIdle();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
-
     SDL_DestroyWindow(window);
+}
 
-    Singleton<Logger>::Get().Log("Config renderer loop returning...");
+void Renderer::LoopTick()
+{
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Example Window");
+    ImGui::Text("Hello from ImGui with Vulkan!");
+    ImGui::End();
+
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *vulkanBackend.commandBuffer);
+}
+
+void Renderer::Loop(std::stop_token stopToken)
+{
+    while (!stopToken.stop_requested())
+        LoopTick();
 }
 
 }  // namespace tektonik::config

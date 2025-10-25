@@ -27,13 +27,18 @@ export class Renderer
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
-    void Init();
+    void Init(bool launchThread = true);
+    void Stop();
 
-    void Loop(std::stop_token stopToken);
+    //! Can be run on main thread manually.
+    void LoopTick();
 
   private:
+    void Loop(std::stop_token stopToken);
+
     SDL_Window* window = nullptr;
     VulkanBackend vulkanBackend{};
+    std::jthread loopThread{};
 };
 
 }  // namespace tektonik::config
