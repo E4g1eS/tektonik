@@ -136,7 +136,7 @@ vk::raii::Instance CreateInstance(const vk::raii::Context& context)
     auto extensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
 
     if (!vulkan::util::AreInstanceExtensionsSupported(context, std::span(extensions, extensionCount)))
-        throw std::runtime_error("Extensions are not supported");
+        throw std::runtime_error("Necessary extensions are not supported");
 
     const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
     const bool validationSupported = vulkan::util::AreInstanceLayersSupported(context, validationLayers);
@@ -151,37 +151,66 @@ vk::raii::Instance CreateInstance(const vk::raii::Context& context)
         });
 }
 
-void InitVulkanBackend(VulkanBackend& vulkanBackend, SDL_Window* window)
+bool IsSuitable(const vk::raii::PhysicalDevice& physicalDevice)
 {
-    vulkanBackend.instance = CreateInstance(vulkanBackend.context);
+    // TODO
+    return true;
+}
 
-    std::vector<vk::raii::PhysicalDevice> physicalDevices = vulkanBackend.instance.enumeratePhysicalDevices();
-    ASSUMERT(physicalDevices.size() >= 1);
-    vulkanBackend.physicalDevice = physicalDevices[0];  // TODO
+vk::raii::PhysicalDevice ChoosePhysicalDevice(const vk::raii::Instance& instance)
+{
+    std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+    if (physicalDevices.empty())
+        throw std::runtime_error("There are no Vulkan physical devices.");
 
-    vulkanBackend.queueFamily = GetGraphicsQueueFamily(vulkanBackend.physicalDevice);
+    auto foundDevice =
+        std::ranges::find_if(physicalDevices, [](const vk::raii::PhysicalDevice& physicalDevice) { return IsSuitable(physicalDevice); });
+    if (foundDevice == physicalDevices.end())
+        throw std::runtime_error("There are no suitable Vulkan physical devices.");
+
+    return *foundDevice;
+}
+
+vk::raii::Device CreateDevice(const vk::raii::PhysicalDevice& physicalDevice, uint32_t queueFamily)
+{
     float queuePriority = 1.0f;
-    vk::DeviceQueueCreateInfo queueCreateInfo{.queueFamilyIndex = vulkanBackend.queueFamily, .queueCount = 1, .pQueuePriorities = &queuePriority};
-    vulkanBackend.device = vulkanBackend.physicalDevice.createDevice(
+    vk::DeviceQueueCreateInfo queueCreateInfo{
+        .queueFamilyIndex = queueFamily,
+        .queueCount = 1,
+        .pQueuePriorities = &queuePriority,
+    };
+
+    const std::vector<const char*> deviceExtensions = {"VK_KHR_swapchain"};
+
+    return physicalDevice.createDevice(
         vk::DeviceCreateInfo{
             .queueCreateInfoCount = 1,
             .pQueueCreateInfos = &queueCreateInfo,
+            .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+            .ppEnabledExtensionNames = deviceExtensions.data(),
         });
-    vulkanBackend.queue = vulkanBackend.device.getQueue(vulkanBackend.queueFamily, 0);
+}
 
-    VkSurfaceKHR surface;
-    if (!SDL_Vulkan_CreateSurface(window, *vulkanBackend.instance, nullptr, &surface))
+void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
+{
+    backend.instance = CreateInstance(backend.context);
+    backend.physicalDevice = ChoosePhysicalDevice(backend.instance);
+    backend.queueFamily = GetGraphicsQueueFamily(backend.physicalDevice);
+    backend.device = CreateDevice(backend.physicalDevice, backend.queueFamily);
+    backend.queue = backend.device.getQueue(backend.queueFamily, 0);
+
+    if (!SDL_Vulkan_CreateSurface(window, *backend.instance, nullptr, &backend.surface))
         throw std::runtime_error("Could not create a Vulkan surface.");
 
-    vulkanBackend.renderPass = CreateRenderPass(vulkanBackend.device);
-    vulkanBackend.commandPool = vulkanBackend.device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = vulkanBackend.queueFamily});
-    auto commandBuffers = vulkanBackend.device.allocateCommandBuffers(
+    backend.renderPass = CreateRenderPass(backend.device);
+    backend.commandPool = backend.device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = backend.queueFamily});
+    auto commandBuffers = backend.device.allocateCommandBuffers(
         vk::CommandBufferAllocateInfo{
-            .commandPool = vulkanBackend.commandPool,
+            .commandPool = backend.commandPool,
             .commandBufferCount = 1,
         });
     ASSUMERT(commandBuffers.size() >= 1);
-    vulkanBackend.commandBuffer = std::move(commandBuffers[0]);
+    backend.commandBuffer = std::move(commandBuffers[0]);
 }
 
 void Renderer::Init(bool launchThread)
