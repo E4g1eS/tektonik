@@ -96,32 +96,6 @@ vk::raii::RenderPass CreateRenderPass(const vk::raii::Device& device)
     return device.createRenderPass(createInfo);
 }
 
-bool AreLayersSupported(const vk::raii::Context& context, const std::ranges::range auto& wantedLayers)
-{
-    auto remainingWantedLayers = std::unordered_set<std::string_view>(wantedLayers.begin(), wantedLayers.end());
-
-    for (const auto& availableLayer : context.enumerateInstanceLayerProperties())
-        remainingWantedLayers.erase(availableLayer.layerName);
-
-    for (const auto& remainingWantedLayer : remainingWantedLayers)
-        Singleton<Logger>::Get().Log<LogLevel::Warning>(std::format("Wanted layer: '{}' is not available.", remainingWantedLayer));
-
-    return remainingWantedLayers.empty();
-}
-
-bool AreExtensionsSupported(const vk::raii::Context& context, const std::ranges::range auto& wantedExtensions)
-{
-    auto remainingWantedExtensions = std::unordered_set<std::string_view>(wantedExtensions.begin(), wantedExtensions.end());
-
-    for (const auto& availableExtension : context.enumerateInstanceExtensionProperties())
-        remainingWantedExtensions.erase(availableExtension.extensionName);
-
-    for (const auto& remainingWantedExtension : remainingWantedExtensions)
-        Singleton<Logger>::Get().Log<LogLevel::Warning>(std::format("Wanted extension: '{}' is not available.", remainingWantedExtension));
-
-    return true;
-}
-
 vk::raii::Instance CreateInstance(const vk::raii::Context& context)
 {
     vk::ApplicationInfo applicationInfo{
@@ -191,19 +165,36 @@ vk::raii::Device CreateDevice(const vk::raii::PhysicalDevice& physicalDevice, ui
         });
 }
 
+vk::SurfaceKHR CreateSurface(const vk::raii::Instance& instance, SDL_Window* window)
+{
+    VkSurfaceKHR surface;
+    if (!SDL_Vulkan_CreateSurface(window, *instance, nullptr, &surface))
+        throw std::runtime_error("Could not create a Vulkan surface.");
+
+    return vk::SurfaceKHR(surface);
+}
+
+vk::raii::SwapchainKHR CreateSwapchain(const vk::raii::Device& device, const vk::SurfaceKHR& surface)
+{
+    return device.createSwapchainKHR(vk::SwapchainCreateInfoKHR{});
+}
+
 void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
 {
     backend.instance = CreateInstance(backend.context);
+    backend.surface = CreateSurface(backend.instance, window);
     backend.physicalDevice = ChoosePhysicalDevice(backend.instance);
     backend.queueFamily = GetGraphicsQueueFamily(backend.physicalDevice);
     backend.device = CreateDevice(backend.physicalDevice, backend.queueFamily);
     backend.queue = backend.device.getQueue(backend.queueFamily, 0);
 
-    if (!SDL_Vulkan_CreateSurface(window, *backend.instance, nullptr, &backend.surface))
-        throw std::runtime_error("Could not create a Vulkan surface.");
 
     backend.renderPass = CreateRenderPass(backend.device);
-    backend.commandPool = backend.device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = backend.queueFamily});
+    backend.commandPool = backend.device.createCommandPool(
+        vk::CommandPoolCreateInfo{
+            .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+            .queueFamilyIndex = backend.queueFamily,
+        });
     auto commandBuffers = backend.device.allocateCommandBuffers(
         vk::CommandBufferAllocateInfo{
             .commandPool = backend.commandPool,
@@ -211,6 +202,7 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
         });
     ASSUMERT(commandBuffers.size() >= 1);
     backend.commandBuffer = std::move(commandBuffers[0]);
+    backend.swapchain = CreateSwapchain(backend.device, backend.surface);
 }
 
 void Renderer::Init(bool launchThread)
@@ -264,6 +256,7 @@ void Renderer::Stop()
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
+    SDL_Vulkan_DestroySurface(*vulkanBackend.instance, vulkanBackend.surface, nullptr);
     SDL_DestroyWindow(window);
 }
 
@@ -278,7 +271,14 @@ void Renderer::LoopTick()
     ImGui::End();
 
     ImGui::Render();
+
+    vulkanBackend.commandBuffer.begin({});
+    vulkanBackend.commandBuffer.beginRenderPass(vk::RenderPassBeginInfo{.renderPass = vulkanBackend.renderPass}, vk::SubpassContents::eInline);
+
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *vulkanBackend.commandBuffer);
+
+    vulkanBackend.commandBuffer.endRenderPass();
+    vulkanBackend.commandBuffer.end();
 }
 
 void Renderer::Loop(std::stop_token stopToken)

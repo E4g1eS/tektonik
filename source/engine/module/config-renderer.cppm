@@ -9,10 +9,10 @@ namespace tektonik::config
 
 struct VulkanBackend
 {
-    VkSurfaceKHR surface{nullptr};
     // Default constructed is enough.
     vk::raii::Context context{};
     vk::raii::Instance instance{nullptr};
+    vk::SurfaceKHR surface{nullptr};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
     // I assume ImGUI needs graphics queue.
     uint32_t queueFamily{};
@@ -21,6 +21,7 @@ struct VulkanBackend
     vk::raii::RenderPass renderPass{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
     vk::raii::CommandBuffer commandBuffer{nullptr};
+    vk::raii::SwapchainKHR swapchain{nullptr};
 };
 
 export class Renderer
