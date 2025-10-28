@@ -92,6 +92,19 @@ std::string ToCase(const concepts::StaticCastableTo<std::string_view> auto& str)
         return ToCaseFromStringView<caseConvert>(static_cast<std::string_view>(str));
 }
 
+// Checks that all wanted are available. Returns a set of wanted, but unavailable.
+export std::unordered_set<std::string_view> HasAll(
+    const concepts::RangeOfCastableTo<std::string_view> auto& availables,
+    const concepts::RangeOfCastableTo<std::string_view> auto& wanteds)
+{
+    auto remainingWanteds = std::unordered_set<std::string_view>(wanteds.begin(), wanteds.end());
+
+    for (const auto& available : availables)
+        remainingWanteds.erase(available);
+
+    return remainingWanteds;
+}
+
 }  // namespace string
 
 }  // namespace tektonik::util

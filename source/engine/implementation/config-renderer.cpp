@@ -8,6 +8,7 @@ module config_renderer;
 import singleton;
 import util;
 import logger;
+import vulkan_util;
 
 namespace tektonik::config
 {
@@ -134,23 +135,20 @@ vk::raii::Instance CreateInstance(const vk::raii::Context& context)
     uint32_t extensionCount = 0;
     auto extensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
 
-    if (!AreExtensionsSupported(context, util::ranges::MakeVector<decltype(extensions), std::string_view>(extensions, extensionCount)))
+    if (!vulkan::util::AreInstanceExtensionsSupported(context, std::span(extensions, extensionCount)))
         throw std::runtime_error("Extensions are not supported");
 
-    vk::InstanceCreateInfo instanceCreateInfo{
-        .pApplicationInfo = &applicationInfo,
-        .enabledExtensionCount = extensionCount,
-        .ppEnabledExtensionNames = extensions,
-    };
-
     const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
-    if (AreLayersSupported(context, validationLayers))
-    {
-        instanceCreateInfo.enabledLayerCount = validationLayers.size();
-        instanceCreateInfo.ppEnabledLayerNames = validationLayers.data();
-    }
+    const bool validationSupported = vulkan::util::AreInstanceLayersSupported(context, validationLayers);
 
-    return context.createInstance(instanceCreateInfo);
+    return context.createInstance(
+        vk::InstanceCreateInfo{
+            .pApplicationInfo = &applicationInfo,
+            .enabledLayerCount = validationSupported ? static_cast<uint32_t>(validationLayers.size()) : 0,
+            .ppEnabledLayerNames = validationSupported ? validationLayers.data() : nullptr,
+            .enabledExtensionCount = extensionCount,
+            .ppEnabledExtensionNames = extensions,
+        });
 }
 
 void InitVulkanBackend(VulkanBackend& vulkanBackend, SDL_Window* window)
