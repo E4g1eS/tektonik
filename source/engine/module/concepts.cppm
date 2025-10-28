@@ -55,4 +55,19 @@ concept Tiable = requires(T obj) {
 export template <typename T>
 concept Pointer = std::is_pointer_v<T>;
 
+export template <typename RangeType, typename WantedType>
+concept RangeOfExactly = std::ranges::range<RangeType> && requires(RangeType range) {
+    { *std::ranges::begin(range) } -> std::same_as<WantedType>;
+};
+
+export template <typename RangeType, typename WantedType>
+concept RangeOfCastableTo = std::ranges::range<RangeType> && requires(RangeType range) {
+    { *std::ranges::begin(range) } -> StaticCastableTo<WantedType>;
+};
+
+export template <typename RangeType, typename WantedType>
+concept RangeOfConstructible = std::ranges::range<RangeType> && requires(RangeType range) {
+    { WantedType(*std::ranges::begin(range)) };
+};
+
 }  // namespace tektonik::concepts
