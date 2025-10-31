@@ -50,27 +50,11 @@ vk::raii::RenderPass CreateRenderPass(const vk::raii::Device& device)
         .layout = vk::ImageLayout::eColorAttachmentOptimal,
     };
 
-    vk::AttachmentDescription depthAttachment{
-        .format = vk::Format::eD32Sfloat,
-        .samples = vk::SampleCountFlagBits::e1,
-        .loadOp = vk::AttachmentLoadOp::eClear,
-        .storeOp = vk::AttachmentStoreOp::eStore,
-        .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,  // Dont care about stencil buffer
-        .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-        .initialLayout = vk::ImageLayout::eUndefined,
-        .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
-    };
-
-    vk::AttachmentReference depthAttachmentReference{
-        .attachment = 1,
-        .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
-    };
-
     vk::SubpassDescription subpass{
         .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
         .colorAttachmentCount = 1,
         .pColorAttachments = &colorAttachmentReference,
-        .pDepthStencilAttachment = &depthAttachmentReference,
+        .pDepthStencilAttachment = nullptr,
     };
 
     vk::SubpassDependency subpassDependency{
@@ -82,11 +66,9 @@ vk::raii::RenderPass CreateRenderPass(const vk::raii::Device& device)
         .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
     };
 
-    auto attachments = std::array{colorAttachment, depthAttachment};
-
     vk::RenderPassCreateInfo createInfo{
-        .attachmentCount = static_cast<uint32_t>(attachments.size()),
-        .pAttachments = attachments.data(),
+        .attachmentCount = 1,
+        .pAttachments = &colorAttachment,
         .subpassCount = 1,
         .pSubpasses = &subpass,
         .dependencyCount = 1,
@@ -174,20 +156,96 @@ vk::SurfaceKHR CreateSurface(const vk::raii::Instance& instance, SDL_Window* win
     return vk::SurfaceKHR(surface);
 }
 
-vk::raii::SwapchainKHR CreateSwapchain(const vk::raii::Device& device, const vk::SurfaceKHR& surface)
+vk::raii::SwapchainKHR CreateSwapchain(
+    const vk::raii::Device& device,
+    const vk::SurfaceKHR& surface,
+    const vk::Extent2D& windowSize,
+    const uint32_t queueFamily)
 {
-    return device.createSwapchainKHR(vk::SwapchainCreateInfoKHR{});
+    return device.createSwapchainKHR(
+        vk::SwapchainCreateInfoKHR{
+            .surface = surface,
+            .minImageCount = 2,
+            .imageFormat = vk::Format::eR8G8B8A8Unorm,
+            .imageExtent = windowSize,
+            .imageArrayLayers = 1,
+            .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+            .imageSharingMode = vk::SharingMode::eExclusive,
+            .queueFamilyIndexCount = {},     // only used with concurrent sharing mode
+            .pQueueFamilyIndices = nullptr,  // only used with concurrent sharing mode
+            .preTransform = vk::SurfaceTransformFlagBitsKHR::eIdentity,
+            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            .presentMode = vk::PresentModeKHR::eFifo,  // only one required to be supported
+            .clipped = true,
+        });
+}
+
+std::vector<vk::raii::ImageView> CreateSwapchainImageViews(const vk::raii::Device& device, const std::vector<vk::Image>& swapchainImages)
+{
+    std::vector<vk::raii::ImageView> swapchainImageViews;
+    swapchainImageViews.reserve(swapchainImages.size());
+    for (const auto& image : swapchainImages)
+    {
+        vk::ImageViewCreateInfo createInfo{
+            .image = image,
+            .viewType = vk::ImageViewType::e2D,
+            .format = vk::Format::eR8G8B8A8Unorm,
+            .components =
+                vk::ComponentMapping{
+                                     .r = vk::ComponentSwizzle::eIdentity,
+                                     .g = vk::ComponentSwizzle::eIdentity,
+                                     .b = vk::ComponentSwizzle::eIdentity,
+                                     .a = vk::ComponentSwizzle::eIdentity,
+                                     },
+            .subresourceRange =
+                vk::ImageSubresourceRange{
+                                     .aspectMask = vk::ImageAspectFlagBits::eColor,
+                                     .baseMipLevel = 0,
+                                     .levelCount = 1,
+                                     .baseArrayLayer = 0,
+                                     .layerCount = 1,
+                                     },
+        };
+        swapchainImageViews.push_back(device.createImageView(createInfo));
+    }
+    return swapchainImageViews;
+}
+
+std::vector<vk::raii::Framebuffer> CreateFramebuffers(
+    const vk::raii::Device& device,
+    const vk::raii::RenderPass& renderPass,
+    const std::vector<vk::raii::ImageView>& swapchainImageViews,
+    const vk::Extent2D& extent)
+{
+    std::vector<vk::raii::Framebuffer> framebuffers;
+    framebuffers.reserve(swapchainImageViews.size());
+    for (const vk::raii::ImageView& imageView : swapchainImageViews)
+    {
+        vk::FramebufferCreateInfo framebufferCreateInfo{
+            .renderPass = *renderPass,
+            .attachmentCount = 1,
+            .pAttachments = &*imageView,
+            .width = extent.width,
+            .height = extent.height,
+            .layers = 1,
+        };
+        framebuffers.push_back(device.createFramebuffer(framebufferCreateInfo));
+    }
+    return framebuffers;
 }
 
 void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
 {
+    int windowWidth, windowHeight;
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    const vk::Extent2D windowSize{static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight)};
+
     backend.instance = CreateInstance(backend.context);
     backend.surface = CreateSurface(backend.instance, window);
     backend.physicalDevice = ChoosePhysicalDevice(backend.instance);
     backend.queueFamily = GetGraphicsQueueFamily(backend.physicalDevice);
     backend.device = CreateDevice(backend.physicalDevice, backend.queueFamily);
     backend.queue = backend.device.getQueue(backend.queueFamily, 0);
-
 
     backend.renderPass = CreateRenderPass(backend.device);
     backend.commandPool = backend.device.createCommandPool(
@@ -202,7 +260,10 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
         });
     ASSUMERT(commandBuffers.size() >= 1);
     backend.commandBuffer = std::move(commandBuffers[0]);
-    backend.swapchain = CreateSwapchain(backend.device, backend.surface);
+    backend.swapchain = CreateSwapchain(backend.device, backend.surface, windowSize, backend.queueFamily);
+    backend.swapchainImages = backend.swapchain.getImages();
+    backend.swapchainImageViews = CreateSwapchainImageViews(backend.device, backend.swapchainImages);
+    backend.swapchainFramebuffers = CreateFramebuffers(backend.device, backend.renderPass, backend.swapchainImageViews, windowSize);
 }
 
 void Renderer::Init(bool launchThread)
@@ -272,10 +333,24 @@ void Renderer::LoopTick()
 
     ImGui::Render();
 
+    const auto [result, imageIndex] = vulkanBackend.swapchain.acquireNextImage(1'000'000);
+
     vulkanBackend.commandBuffer.begin({});
-    vulkanBackend.commandBuffer.beginRenderPass(vk::RenderPassBeginInfo{.renderPass = vulkanBackend.renderPass}, vk::SubpassContents::eInline);
+    vulkanBackend.commandBuffer.beginRenderPass(
+        vk::RenderPassBeginInfo{.renderPass = vulkanBackend.renderPass, .framebuffer = vulkanBackend.swapchainFramebuffers[imageIndex]},
+        vk::SubpassContents::eInline);
 
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *vulkanBackend.commandBuffer);
+
+    vulkanBackend.queue.presentKHR(
+        vk::PresentInfoKHR{
+            .waitSemaphoreCount = 0,
+            .pWaitSemaphores = nullptr,
+            .swapchainCount = 1,
+            .pSwapchains = &*vulkanBackend.swapchain,
+            .pImageIndices = &imageIndex,
+            .pResults = nullptr,
+        });
 
     vulkanBackend.commandBuffer.endRenderPass();
     vulkanBackend.commandBuffer.end();

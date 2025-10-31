@@ -22,6 +22,9 @@ struct VulkanBackend
     vk::raii::CommandPool commandPool{nullptr};
     vk::raii::CommandBuffer commandBuffer{nullptr};
     vk::raii::SwapchainKHR swapchain{nullptr};
+    std::vector<vk::Image> swapchainImages{};
+    std::vector<vk::raii::ImageView> swapchainImageViews{};
+    std::vector<vk::raii::Framebuffer> swapchainFramebuffers{};
 };
 
 export class Renderer
