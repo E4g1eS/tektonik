@@ -13,6 +13,8 @@ import vulkan_util;
 namespace tektonik::config
 {
 
+constexpr uint32_t kMaxFramesInFLight = 2;
+
 void CheckImGuiVulkanResult(VkResult result)
 {
     if (result == VK_SUCCESS)
@@ -234,11 +236,29 @@ std::vector<vk::raii::Framebuffer> CreateFramebuffers(
     return framebuffers;
 }
 
+std::vector<vk::raii::Semaphore> CreateSemaphores(const vk::raii::Device& device, const size_t count)
+{
+    std::vector<vk::raii::Semaphore> semaphores;
+    semaphores.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+        semaphores.push_back(device.createSemaphore(vk::SemaphoreCreateInfo{}));
+    return semaphores;
+}
+
+std::vector<vk::raii::Fence> CreateFences(const vk::raii::Device& device, const size_t count, const bool signaled = false)
+{
+    std::vector<vk::raii::Fence> fences;
+    fences.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+        fences.push_back(device.createFence(vk::FenceCreateInfo{.flags = signaled ? vk::FenceCreateFlagBits::eSignaled : vk::FenceCreateFlags{}}));
+    return fences;
+}
+
 void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
 {
     int windowWidth, windowHeight;
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-    const vk::Extent2D windowSize{static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight)};
+    backend.swapchainExtent = vk::Extent2D{static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight)};
 
     backend.instance = CreateInstance(backend.context);
     backend.surface = CreateSurface(backend.instance, window);
@@ -249,21 +269,21 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
 
     backend.renderPass = CreateRenderPass(backend.device);
     backend.commandPool = backend.device.createCommandPool(
-        vk::CommandPoolCreateInfo{
-            .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-            .queueFamilyIndex = backend.queueFamily,
-        });
-    auto commandBuffers = backend.device.allocateCommandBuffers(
-        vk::CommandBufferAllocateInfo{
-            .commandPool = backend.commandPool,
-            .commandBufferCount = 1,
-        });
-    ASSUMERT(commandBuffers.size() >= 1);
-    backend.commandBuffer = std::move(commandBuffers[0]);
-    backend.swapchain = CreateSwapchain(backend.device, backend.surface, windowSize, backend.queueFamily);
+        vk::CommandPoolCreateInfo{.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = backend.queueFamily});
+
+    // Swapchain and related resources.
+    backend.swapchain = CreateSwapchain(backend.device, backend.surface, backend.swapchainExtent, backend.queueFamily);
     backend.swapchainImages = backend.swapchain.getImages();
     backend.swapchainImageViews = CreateSwapchainImageViews(backend.device, backend.swapchainImages);
-    backend.swapchainFramebuffers = CreateFramebuffers(backend.device, backend.renderPass, backend.swapchainImageViews, windowSize);
+    backend.swapchainFramebuffers = CreateFramebuffers(backend.device, backend.renderPass, backend.swapchainImageViews, backend.swapchainExtent);
+    // These must be waited on based on acquired image index, not current frame index
+    // because Vulkan swapchain can return images out of order (and even multiple same indexes in a row).
+    backend.submitFinishedSemaphores = CreateSemaphores(backend.device, backend.swapchainImages.size());
+    // The rest can be based on current frame index.
+    backend.acquireImageSemaphores = CreateSemaphores(backend.device, kMaxFramesInFLight);
+    backend.commandBuffers = backend.device.allocateCommandBuffers(
+        vk::CommandBufferAllocateInfo{.commandPool = backend.commandPool, .commandBufferCount = kMaxFramesInFLight});
+    backend.submitFinishedFences = CreateFences(backend.device, kMaxFramesInFLight, true);
 }
 
 void Renderer::Init(bool launchThread)
@@ -333,27 +353,65 @@ void Renderer::LoopTick()
 
     ImGui::Render();
 
-    const auto [result, imageIndex] = vulkanBackend.swapchain.acquireNextImage(1'000'000);
+    constexpr uint64_t kTimeoutNs = 1'000'000'000ULL;
 
-    vulkanBackend.commandBuffer.begin({});
-    vulkanBackend.commandBuffer.beginRenderPass(
-        vk::RenderPassBeginInfo{.renderPass = vulkanBackend.renderPass, .framebuffer = vulkanBackend.swapchainFramebuffers[imageIndex]},
+    vulkanBackend.device.waitForFences(*vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex], true, kTimeoutNs);
+    vulkanBackend.device.resetFences(*vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex]);
+
+    const auto [result, imageIndex] =
+        vulkanBackend.swapchain.acquireNextImage(kTimeoutNs, vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex]);
+
+    vk::raii::CommandBuffer& commandBuffer = vulkanBackend.commandBuffers[vulkanBackend.currentFrameIndex];
+
+    commandBuffer.reset();
+    commandBuffer.begin({});
+
+    vk::ClearValue clearValue{.color = vk::ClearColorValue{}.setFloat32({0.0f, 0.0f, 0.0f, 1.0f})};
+
+    commandBuffer.beginRenderPass(
+        vk::RenderPassBeginInfo{
+            .renderPass = vulkanBackend.renderPass,
+            .framebuffer = vulkanBackend.swapchainFramebuffers[vulkanBackend.currentFrameIndex],
+            .renderArea =
+                vk::Rect2D{
+                           .offset = vk::Offset2D{0, 0},
+                           .extent = vulkanBackend.swapchainExtent,
+                           },
+            .clearValueCount = 1,
+            .pClearValues = &clearValue,
+    },
         vk::SubpassContents::eInline);
 
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *vulkanBackend.commandBuffer);
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *commandBuffer);
+
+    commandBuffer.endRenderPass();
+    commandBuffer.end();
+
+    static constexpr vk::PipelineStageFlags kWaitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+    vulkanBackend.queue.submit(
+        vk::SubmitInfo{
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &*vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex],
+            .pWaitDstStageMask = &kWaitStage,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &*commandBuffer,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
+        },
+        vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex]);
 
     vulkanBackend.queue.presentKHR(
         vk::PresentInfoKHR{
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = nullptr,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
             .swapchainCount = 1,
             .pSwapchains = &*vulkanBackend.swapchain,
             .pImageIndices = &imageIndex,
             .pResults = nullptr,
         });
 
-    vulkanBackend.commandBuffer.endRenderPass();
-    vulkanBackend.commandBuffer.end();
+    vulkanBackend.currentFrameIndex = (vulkanBackend.currentFrameIndex + 1) % kMaxFramesInFLight;
 }
 
 void Renderer::Loop(std::stop_token stopToken)

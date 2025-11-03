@@ -20,11 +20,26 @@ struct VulkanBackend
     vk::raii::Queue queue{nullptr};
     vk::raii::RenderPass renderPass{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
-    vk::raii::CommandBuffer commandBuffer{nullptr};
+    vk::Extent2D swapchainExtent{};
+
+    // Swapchain related
+
     vk::raii::SwapchainKHR swapchain{nullptr};
+
+    // Resources per swapchain image
+
     std::vector<vk::Image> swapchainImages{};
     std::vector<vk::raii::ImageView> swapchainImageViews{};
     std::vector<vk::raii::Framebuffer> swapchainFramebuffers{};
+    std::vector<vk::raii::Semaphore> submitFinishedSemaphores{};
+
+    // Resources per frame
+
+    std::vector<vk::raii::Semaphore> acquireImageSemaphores{};
+    std::vector<vk::raii::CommandBuffer> commandBuffers{};
+    std::vector<vk::raii::Fence> submitFinishedFences{};
+
+    size_t currentFrameIndex = 0;
 };
 
 export class Renderer
