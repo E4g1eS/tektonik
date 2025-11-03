@@ -86,6 +86,7 @@ export class Renderer
 
   private:
     void VulkanTick();
+    void RecreateSwapchain();
 
     Manager* manager = nullptr;
     SDL_Window* window = nullptr;

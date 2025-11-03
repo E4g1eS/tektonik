@@ -363,60 +363,80 @@ void Renderer::VulkanTick()
     vulkanBackend.device.waitForFences(*vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex], true, kTimeoutNs);
     vulkanBackend.device.resetFences(*vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex]);
 
-    const auto [result, imageIndex] =
-        vulkanBackend.swapchain.acquireNextImage(kTimeoutNs, vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex]);
+    try
+    {
+        const auto [result, imageIndex] =
+            vulkanBackend.swapchain.acquireNextImage(kTimeoutNs, vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex]);
 
-    vk::raii::CommandBuffer& commandBuffer = vulkanBackend.commandBuffers[vulkanBackend.currentFrameIndex];
+        if (result == vk::Result::eSuboptimalKHR)
+        {
+            Singleton<Logger>::Get().Log("Swapchain is suboptimal.");
+            RecreateSwapchain();
+            return;
+        }
 
-    commandBuffer.reset();
-    commandBuffer.begin({});
+        vk::raii::CommandBuffer& commandBuffer = vulkanBackend.commandBuffers[vulkanBackend.currentFrameIndex];
 
-    vk::ClearValue clearValue{.color = vk::ClearColorValue{}.setFloat32({0.0f, 0.0f, 0.0f, 1.0f})};
+        commandBuffer.reset();
+        commandBuffer.begin({});
 
-    commandBuffer.beginRenderPass(
-        vk::RenderPassBeginInfo{
-            .renderPass = vulkanBackend.renderPass,
-            .framebuffer = vulkanBackend.swapchainFramebuffers[vulkanBackend.currentFrameIndex],
-            .renderArea =
-                vk::Rect2D{
-                           .offset = vk::Offset2D{0, 0},
-                           .extent = vulkanBackend.swapchainExtent,
-                           },
-            .clearValueCount = 1,
-            .pClearValues = &clearValue,
-    },
-        vk::SubpassContents::eInline);
+        vk::ClearValue clearValue{.color = vk::ClearColorValue{}.setFloat32({0.0f, 0.0f, 0.0f, 1.0f})};
 
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *commandBuffer);
-
-    commandBuffer.endRenderPass();
-    commandBuffer.end();
-
-    static constexpr vk::PipelineStageFlags kWaitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-
-    vulkanBackend.queue.submit(
-        vk::SubmitInfo{
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &*vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex],
-            .pWaitDstStageMask = &kWaitStage,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &*commandBuffer,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
+        commandBuffer.beginRenderPass(
+            vk::RenderPassBeginInfo{
+                .renderPass = vulkanBackend.renderPass,
+                .framebuffer = vulkanBackend.swapchainFramebuffers[vulkanBackend.currentFrameIndex],
+                .renderArea =
+                    vk::Rect2D{
+                               .offset = vk::Offset2D{0, 0},
+                               .extent = vulkanBackend.swapchainExtent,
+                               },
+                .clearValueCount = 1,
+                .pClearValues = &clearValue,
         },
-        vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex]);
+            vk::SubpassContents::eInline);
 
-    vulkanBackend.queue.presentKHR(
-        vk::PresentInfoKHR{
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
-            .swapchainCount = 1,
-            .pSwapchains = &*vulkanBackend.swapchain,
-            .pImageIndices = &imageIndex,
-            .pResults = nullptr,
-        });
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *commandBuffer);
 
-    vulkanBackend.currentFrameIndex = (vulkanBackend.currentFrameIndex + 1) % kMaxFramesInFLight;
+        commandBuffer.endRenderPass();
+        commandBuffer.end();
+
+        static constexpr vk::PipelineStageFlags kWaitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+        vulkanBackend.queue.submit(
+            vk::SubmitInfo{
+                .waitSemaphoreCount = 1,
+                .pWaitSemaphores = &*vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex],
+                .pWaitDstStageMask = &kWaitStage,
+                .commandBufferCount = 1,
+                .pCommandBuffers = &*commandBuffer,
+                .signalSemaphoreCount = 1,
+                .pSignalSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
+            },
+            vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex]);
+
+        vulkanBackend.queue.presentKHR(
+            vk::PresentInfoKHR{
+                .waitSemaphoreCount = 1,
+                .pWaitSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
+                .swapchainCount = 1,
+                .pSwapchains = &*vulkanBackend.swapchain,
+                .pImageIndices = &imageIndex,
+                .pResults = nullptr,
+            });
+
+        vulkanBackend.currentFrameIndex = (vulkanBackend.currentFrameIndex + 1) % kMaxFramesInFLight;
+    }
+    catch (const vk::OutOfDateKHRError&)
+    {
+        Singleton<Logger>::Get().Log("Swapchain is out of date.");
+        RecreateSwapchain();
+    }
+}
+
+void Renderer::RecreateSwapchain()
+{
+    Singleton<Logger>::Get().Log("Recreating swapchain...");
 }
 
 }  // namespace tektonik::config
