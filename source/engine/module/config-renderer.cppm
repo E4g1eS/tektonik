@@ -43,26 +43,29 @@ struct VulkanBackend
     vk::raii::Queue queue{nullptr};
     vk::raii::RenderPass renderPass{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
-    vk::Extent2D swapchainExtent{};
 
-    // Swapchain related
+    /// Structure wrapping swapchain and its related resources.
+    /// Must be recreated on window resize.
+    struct SwapchainWrapper
+    {
+        vk::Extent2D extent{};
+        vk::raii::SwapchainKHR swapchain{nullptr};
 
-    vk::raii::SwapchainKHR swapchain{nullptr};
+        // Resources per swapchain image
 
-    // Resources per swapchain image
+        std::vector<vk::Image> images{};
+        std::vector<vk::raii::ImageView> imageViews{};
+        std::vector<vk::raii::Framebuffer> framebuffers{};
+        std::vector<vk::raii::Semaphore> submitFinishedSemaphores{};
 
-    std::vector<vk::Image> swapchainImages{};
-    std::vector<vk::raii::ImageView> swapchainImageViews{};
-    std::vector<vk::raii::Framebuffer> swapchainFramebuffers{};
-    std::vector<vk::raii::Semaphore> submitFinishedSemaphores{};
+        // Resources per frame (as in max frames in flight)
 
-    // Resources per frame
+        std::vector<vk::raii::Semaphore> acquiredImageSemaphores{};
+        std::vector<vk::raii::CommandBuffer> commandBuffers{};
+        std::vector<vk::raii::Fence> submitFinishedFences{};
 
-    std::vector<vk::raii::Semaphore> acquireImageSemaphores{};
-    std::vector<vk::raii::CommandBuffer> commandBuffers{};
-    std::vector<vk::raii::Fence> submitFinishedFences{};
-
-    size_t currentFrameIndex = 0;
+        size_t currentFrameIndex = 0;
+    } swapchainWrapper;
 };
 
 export class Renderer

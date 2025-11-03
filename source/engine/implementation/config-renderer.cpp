@@ -246,12 +246,37 @@ std::vector<vk::raii::Fence> CreateFences(const vk::raii::Device& device, const 
     return fences;
 }
 
+vk::Extent2D GetSurfaceExtent(const vk::raii::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface)
+{
+    return physicalDevice.getSurfaceCapabilitiesKHR(surface).currentExtent;
+}
+
+VulkanBackend::SwapchainWrapper CreateSwapchainWrapper(
+    const vk::raii::Device& device,
+    const vk::SurfaceKHR& surface,
+    const vk::Extent2D& windowSize,
+    const uint32_t queueFamily,
+    const vk::raii::RenderPass& renderPass,
+    const vk::raii::CommandPool& commandPool)
+{
+    VulkanBackend::SwapchainWrapper swapchainWrapper;
+    swapchainWrapper.extent = windowSize;
+    swapchainWrapper.swapchain = CreateSwapchain(device, surface, swapchainWrapper.extent, queueFamily);
+    swapchainWrapper.images = swapchainWrapper.swapchain.getImages();
+    swapchainWrapper.imageViews = CreateSwapchainImageViews(device, swapchainWrapper.images);
+    swapchainWrapper.framebuffers = CreateFramebuffers(device, renderPass, swapchainWrapper.imageViews, swapchainWrapper.extent);
+    swapchainWrapper.submitFinishedSemaphores = CreateSemaphores(device, swapchainWrapper.images.size());
+
+    swapchainWrapper.acquiredImageSemaphores = CreateSemaphores(device, kMaxFramesInFLight);
+    swapchainWrapper.commandBuffers =
+        device.allocateCommandBuffers(vk::CommandBufferAllocateInfo{.commandPool = commandPool, .commandBufferCount = kMaxFramesInFLight});
+    swapchainWrapper.submitFinishedFences = CreateFences(device, kMaxFramesInFLight, true);
+
+    return swapchainWrapper;
+}
+
 void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
 {
-    int windowWidth, windowHeight;
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-    backend.swapchainExtent = vk::Extent2D{static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight)};
-
     backend.instance = CreateInstance(backend.context);
     backend.surface = SurfaceWrapper(backend.instance, window);
     backend.physicalDevice = ChoosePhysicalDevice(backend.instance);
@@ -263,19 +288,13 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
     backend.commandPool = backend.device.createCommandPool(
         vk::CommandPoolCreateInfo{.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = backend.queueFamily});
 
-    // Swapchain and related resources.
-    backend.swapchain = CreateSwapchain(backend.device, *backend.surface, backend.swapchainExtent, backend.queueFamily);
-    backend.swapchainImages = backend.swapchain.getImages();
-    backend.swapchainImageViews = CreateSwapchainImageViews(backend.device, backend.swapchainImages);
-    backend.swapchainFramebuffers = CreateFramebuffers(backend.device, backend.renderPass, backend.swapchainImageViews, backend.swapchainExtent);
-    // These must be waited on based on acquired image index, not current frame index
-    // because Vulkan swapchain can return images out of order (and even multiple same indexes in a row).
-    backend.submitFinishedSemaphores = CreateSemaphores(backend.device, backend.swapchainImages.size());
-    // The rest can be based on current frame index.
-    backend.acquireImageSemaphores = CreateSemaphores(backend.device, kMaxFramesInFLight);
-    backend.commandBuffers = backend.device.allocateCommandBuffers(
-        vk::CommandBufferAllocateInfo{.commandPool = backend.commandPool, .commandBufferCount = kMaxFramesInFLight});
-    backend.submitFinishedFences = CreateFences(backend.device, kMaxFramesInFLight, true);
+    backend.swapchainWrapper = CreateSwapchainWrapper(
+        backend.device,
+        *backend.surface,
+        GetSurfaceExtent(backend.physicalDevice, *backend.surface),
+        backend.queueFamily,
+        backend.renderPass,
+        backend.commandPool);
 }
 
 SurfaceWrapper::SurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window) : instance(instance)
@@ -360,13 +379,23 @@ void Renderer::VulkanTick()
 {
     constexpr uint64_t kTimeoutNs = 1'000'000'000ULL;
 
-    vulkanBackend.device.waitForFences(*vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex], true, kTimeoutNs);
-    vulkanBackend.device.resetFences(*vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex]);
+    VulkanBackend::SwapchainWrapper& swapchainWrapper = vulkanBackend.swapchainWrapper;
+    size_t& currentFrameIndex = swapchainWrapper.currentFrameIndex;
+
+    if (!*swapchainWrapper.swapchain)
+    {
+        RecreateSwapchain();
+        if (!*swapchainWrapper.swapchain)
+            return;
+    }
+
+    vulkanBackend.device.waitForFences(*swapchainWrapper.submitFinishedFences[currentFrameIndex], true, kTimeoutNs);
+    vulkanBackend.device.resetFences(*swapchainWrapper.submitFinishedFences[currentFrameIndex]);
 
     try
     {
         const auto [result, imageIndex] =
-            vulkanBackend.swapchain.acquireNextImage(kTimeoutNs, vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex]);
+            swapchainWrapper.swapchain.acquireNextImage(kTimeoutNs, swapchainWrapper.acquiredImageSemaphores[currentFrameIndex]);
 
         if (result == vk::Result::eSuboptimalKHR)
         {
@@ -375,7 +404,7 @@ void Renderer::VulkanTick()
             return;
         }
 
-        vk::raii::CommandBuffer& commandBuffer = vulkanBackend.commandBuffers[vulkanBackend.currentFrameIndex];
+        vk::raii::CommandBuffer& commandBuffer = swapchainWrapper.commandBuffers[currentFrameIndex];
 
         commandBuffer.reset();
         commandBuffer.begin({});
@@ -385,11 +414,11 @@ void Renderer::VulkanTick()
         commandBuffer.beginRenderPass(
             vk::RenderPassBeginInfo{
                 .renderPass = vulkanBackend.renderPass,
-                .framebuffer = vulkanBackend.swapchainFramebuffers[vulkanBackend.currentFrameIndex],
+                .framebuffer = swapchainWrapper.framebuffers[currentFrameIndex],
                 .renderArea =
                     vk::Rect2D{
                                .offset = vk::Offset2D{0, 0},
-                               .extent = vulkanBackend.swapchainExtent,
+                               .extent = swapchainWrapper.extent,
                                },
                 .clearValueCount = 1,
                 .pClearValues = &clearValue,
@@ -406,26 +435,26 @@ void Renderer::VulkanTick()
         vulkanBackend.queue.submit(
             vk::SubmitInfo{
                 .waitSemaphoreCount = 1,
-                .pWaitSemaphores = &*vulkanBackend.acquireImageSemaphores[vulkanBackend.currentFrameIndex],
+                .pWaitSemaphores = &*swapchainWrapper.acquiredImageSemaphores[currentFrameIndex],
                 .pWaitDstStageMask = &kWaitStage,
                 .commandBufferCount = 1,
                 .pCommandBuffers = &*commandBuffer,
                 .signalSemaphoreCount = 1,
-                .pSignalSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
+                .pSignalSemaphores = &*swapchainWrapper.submitFinishedSemaphores[imageIndex],
             },
-            vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex]);
+            swapchainWrapper.submitFinishedFences[currentFrameIndex]);
 
         vulkanBackend.queue.presentKHR(
             vk::PresentInfoKHR{
                 .waitSemaphoreCount = 1,
-                .pWaitSemaphores = &*vulkanBackend.submitFinishedSemaphores[imageIndex],
+                .pWaitSemaphores = &*swapchainWrapper.submitFinishedSemaphores[imageIndex],
                 .swapchainCount = 1,
-                .pSwapchains = &*vulkanBackend.swapchain,
+                .pSwapchains = &*swapchainWrapper.swapchain,
                 .pImageIndices = &imageIndex,
                 .pResults = nullptr,
             });
 
-        vulkanBackend.currentFrameIndex = (vulkanBackend.currentFrameIndex + 1) % kMaxFramesInFLight;
+        swapchainWrapper.currentFrameIndex = (swapchainWrapper.currentFrameIndex + 1) % kMaxFramesInFLight;
     }
     catch (const vk::OutOfDateKHRError&)
     {
@@ -436,7 +465,23 @@ void Renderer::VulkanTick()
 
 void Renderer::RecreateSwapchain()
 {
+    vulkanBackend.device.waitIdle();
+
+    util::MoveDelete(vulkanBackend.swapchainWrapper);
+
+    vk::Extent2D windowSize = GetSurfaceExtent(vulkanBackend.physicalDevice, *vulkanBackend.surface);
+    if (windowSize.width == 0 && windowSize.height == 0)
+        return;
+
     Singleton<Logger>::Get().Log("Recreating swapchain...");
+
+    vulkanBackend.swapchainWrapper = CreateSwapchainWrapper(
+        vulkanBackend.device,
+        *vulkanBackend.surface,
+        GetSurfaceExtent(vulkanBackend.physicalDevice, *vulkanBackend.surface),
+        vulkanBackend.queueFamily,
+        vulkanBackend.renderPass,
+        vulkanBackend.commandPool);
 }
 
 }  // namespace tektonik::config
