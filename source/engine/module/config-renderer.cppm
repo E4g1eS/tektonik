@@ -88,6 +88,7 @@ export class Renderer
     void HandleEvent(const SDL_Event& event) { ImGui_ImplSDL3_ProcessEvent(&event); }
 
   private:
+    void AddImGuiThings();
     void VulkanTick();
     void RecreateSwapchain();
 

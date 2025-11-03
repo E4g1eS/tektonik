@@ -366,13 +366,33 @@ void Renderer::Tick()
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("Example Window");
-    ImGui::Text("Hello from ImGui with Vulkan!");
-    ImGui::End();
+    AddImGuiThings();
 
     ImGui::Render();
 
     VulkanTick();
+}
+
+void Renderer::AddImGuiThings()
+{
+    auto& variables = manager->GetVariables();
+
+    ImGui::Begin("Variables");
+
+    static String debugString("DebugString", "Hello config");
+
+    for (const auto& [name, value] : variables)
+    {
+        std::visit([](auto&& arg)
+            {
+            using T = std::remove_cvref_t<decltype(arg)>;
+
+            if constexpr (std::is_same_v<T, String*>)
+                ImGui::Text((**arg).c_str());
+            }, value);
+    }
+
+    ImGui::End();
 }
 
 void Renderer::VulkanTick()
@@ -389,7 +409,7 @@ void Renderer::VulkanTick()
             return;
     }
 
-    vulkanBackend.device.waitForFences(*swapchainWrapper.submitFinishedFences[currentFrameIndex], true, kTimeoutNs);
+    static_cast<void>(vulkanBackend.device.waitForFences(*swapchainWrapper.submitFinishedFences[currentFrameIndex], true, kTimeoutNs));
     vulkanBackend.device.resetFences(*swapchainWrapper.submitFinishedFences[currentFrameIndex]);
 
     try
@@ -444,7 +464,7 @@ void Renderer::VulkanTick()
             },
             swapchainWrapper.submitFinishedFences[currentFrameIndex]);
 
-        vulkanBackend.queue.presentKHR(
+        static_cast<void>(vulkanBackend.queue.presentKHR(
             vk::PresentInfoKHR{
                 .waitSemaphoreCount = 1,
                 .pWaitSemaphores = &*swapchainWrapper.submitFinishedSemaphores[imageIndex],
@@ -452,7 +472,7 @@ void Renderer::VulkanTick()
                 .pSwapchains = &*swapchainWrapper.swapchain,
                 .pImageIndices = &imageIndex,
                 .pResults = nullptr,
-            });
+            }));
 
         swapchainWrapper.currentFrameIndex = (swapchainWrapper.currentFrameIndex + 1) % kMaxFramesInFLight;
     }

@@ -15,13 +15,40 @@ class ConfigParseError : public std::runtime_error
     ConfigParseError(const std::string& message) : std::runtime_error(message) {}
 };
 
+template <typename T>
+class Variable
+{
+  public:
+    Variable() = default;
+    Variable(const concepts::StringLike auto& name, const T& defaultValue);
+    ~Variable();
+
+    Variable(const Variable&) = delete;
+    Variable& operator=(const Variable&) = delete;
+
+    T& operator*() { return value; }
+    const T& operator*() const { return value; }
+
+    // Specialize this for other types.
+    void LoadFromStringView(const std::string_view& input) { value = input; }
+
+  private:
+    std::string name = "";
+    T value = T();
+};
+export using String = Variable<std::string>;
+export using Int32 = Variable<int32_t>;
+export using UInt32 = Variable<uint32_t>;
+export using Float = Variable<float>;
+export using Bool = Variable<bool>;
+
 export class Manager
 {
   public:
-    void RegisterVariable(const std::string& name, std::any& variable)
+    void RegisterVariable(const std::string& name, auto* variable)
     {
         ASSUMERT(!variables.contains(name));
-        variables.insert({name, &variable});
+        variables.insert({name, variable});
     }
 
     void UnregisterVariable(const std::string& name)
@@ -30,38 +57,24 @@ export class Manager
         variables.erase(name);
     }
 
+    auto& GetVariables() { return variables; }
+
   private:
-    std::unordered_map<std::string, std::any*> variables;
+    std::map<std::string, std::variant<String*, Int32*, UInt32*, Float*, Bool*>> variables;
 };
 
 template <typename T>
-class Variable
+Variable<T>::Variable(const concepts::StringLike auto& name, const T& defaultValue) : name(name), value(defaultValue)
 {
-  public:
-    Variable() = default;
-    Variable(const concepts::StringLike auto& name, const T& defaultValue) : name(name), value(defaultValue)
-    {
-        Singleton<Manager>::Get().RegisterVariable(name, *this);
-    }
-    Variable(const Variable&) = delete;
-    Variable& operator=(const Variable&) = delete;
-    ~Variable()
-    {
-        if (name != "")
-            Singleton<Manager>::Get().UnregisterVariable(name);
-    }
+    Singleton<Manager>::Get().RegisterVariable(name, this);
+}
 
-    T& operator*() { return value; }
-    const T& operator*() const { return value; }
-
-    // Override this for other types.
-    void LoadFromStringView(const std::string_view& input) { value = input; }
-
-  private:
-    std::string name = "";
-    T value = T();
-};
-export using String = Variable<std::string>;
+template <typename T>
+Variable<T>::~Variable()
+{
+    if (name != "")
+        Singleton<Manager>::Get().UnregisterVariable(name);
+}
 
 template <>
 void Variable<int32_t>::LoadFromStringView(const std::string_view& input)
@@ -76,7 +89,6 @@ void Variable<int32_t>::LoadFromStringView(const std::string_view& input)
         throw ConfigParseError(std::format("Could not parse '{}' as int32_t.", input));
     }
 }
-export using Int32 = Variable<int32_t>;
 
 template <>
 void Variable<uint32_t>::LoadFromStringView(const std::string_view& input)
@@ -93,7 +105,6 @@ void Variable<uint32_t>::LoadFromStringView(const std::string_view& input)
         throw ConfigParseError(std::format("Could not parse '{}' as uint32_t.", input));
     }
 }
-export using UInt32 = Variable<uint32_t>;
 
 template <>
 void Variable<float>::LoadFromStringView(const std::string_view& input)
@@ -107,7 +118,6 @@ void Variable<float>::LoadFromStringView(const std::string_view& input)
         throw ConfigParseError(std::format("Could not parse '{}' as float.", input));
     }
 }
-export using Float = Variable<float>;
 
 template <>
 void Variable<bool>::LoadFromStringView(const std::string_view& input)
@@ -121,6 +131,5 @@ void Variable<bool>::LoadFromStringView(const std::string_view& input)
     else
         throw ConfigParseError(std::format("Could not parse '{}' as bool.", input));
 }
-export using Bool = Variable<bool>;
 
 }  // namespace tektonik::config
