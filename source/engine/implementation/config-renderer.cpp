@@ -9,6 +9,7 @@ import singleton;
 import util;
 import logger;
 import vulkan_util;
+import util;
 
 namespace tektonik::config
 {
@@ -149,15 +150,6 @@ vk::raii::Device CreateDevice(const vk::raii::PhysicalDevice& physicalDevice, ui
         });
 }
 
-vk::SurfaceKHR CreateSurface(const vk::raii::Instance& instance, SDL_Window* window)
-{
-    VkSurfaceKHR surface;
-    if (!SDL_Vulkan_CreateSurface(window, *instance, nullptr, &surface))
-        throw std::runtime_error("Could not create a Vulkan surface.");
-
-    return vk::SurfaceKHR(surface);
-}
-
 vk::raii::SwapchainKHR CreateSwapchain(
     const vk::raii::Device& device,
     const vk::SurfaceKHR& surface,
@@ -261,7 +253,7 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
     backend.swapchainExtent = vk::Extent2D{static_cast<uint32_t>(windowWidth), static_cast<uint32_t>(windowHeight)};
 
     backend.instance = CreateInstance(backend.context);
-    backend.surface = CreateSurface(backend.instance, window);
+    backend.surface = SurfaceWrapper(backend.instance, window);
     backend.physicalDevice = ChoosePhysicalDevice(backend.instance);
     backend.queueFamily = GetGraphicsQueueFamily(backend.physicalDevice);
     backend.device = CreateDevice(backend.physicalDevice, backend.queueFamily);
@@ -272,7 +264,7 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
         vk::CommandPoolCreateInfo{.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = backend.queueFamily});
 
     // Swapchain and related resources.
-    backend.swapchain = CreateSwapchain(backend.device, backend.surface, backend.swapchainExtent, backend.queueFamily);
+    backend.swapchain = CreateSwapchain(backend.device, *backend.surface, backend.swapchainExtent, backend.queueFamily);
     backend.swapchainImages = backend.swapchain.getImages();
     backend.swapchainImageViews = CreateSwapchainImageViews(backend.device, backend.swapchainImages);
     backend.swapchainFramebuffers = CreateFramebuffers(backend.device, backend.renderPass, backend.swapchainImageViews, backend.swapchainExtent);
@@ -286,13 +278,27 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
     backend.submitFinishedFences = CreateFences(backend.device, kMaxFramesInFLight, true);
 }
 
-void Renderer::Init(bool launchThread)
+SurfaceWrapper::SurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window) : instance(instance)
 {
-    SDL_Init(SDL_INIT_VIDEO);
+    VkSurfaceKHR cSurface;
+    if (!SDL_Vulkan_CreateSurface(window, *instance, nullptr, &cSurface))
+        throw std::runtime_error("Could not create a Vulkan surface.");
+
+    surface = cSurface;
+}
+
+SurfaceWrapper::~SurfaceWrapper()
+{
+    if (instance && surface)
+        SDL_Vulkan_DestroySurface(instance, surface, nullptr);
+}
+
+Renderer::Renderer(Manager& manager) : manager(&manager)
+{
     window = SDL_CreateWindow("ImGui + SDL + Vulkan", 1280, 720, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    imGuiContext = ImGui::CreateContext();
 
     ImGui_ImplSDL3_InitForVulkan(window);
 
@@ -318,30 +324,24 @@ void Renderer::Init(bool launchThread)
         .CustomShaderFragCreateInfo = vk::ShaderModuleCreateInfo{.sType = static_cast<vk::StructureType>(std::numeric_limits<uint32_t>::max())},
     };
     ImGui_ImplVulkan_Init(&vulkanInitInfo);
-
-    if (launchThread)
-        loopThread = std::jthread([this](std::stop_token stopToken) { Loop(stopToken); });
 }
 
-void Renderer::Stop()
+Renderer::~Renderer()
 {
-    if (loopThread.joinable())
-    {
-        Singleton<Logger>::Get().Log("Stopping config renderer loop...");
-        loopThread.request_stop();
-        loopThread.join();
-        Singleton<Logger>::Get().Log("Config renderer loop joined.");
-    }
+    if (!manager)
+        return;
 
     vulkanBackend.device.waitIdle();
     ImGui_ImplVulkan_Shutdown();
+
+    util::MoveDelete(vulkanBackend);
+
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
-    SDL_Vulkan_DestroySurface(*vulkanBackend.instance, vulkanBackend.surface, nullptr);
     SDL_DestroyWindow(window);
 }
 
-void Renderer::LoopTick()
+void Renderer::Tick()
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL3_NewFrame();
@@ -353,6 +353,11 @@ void Renderer::LoopTick()
 
     ImGui::Render();
 
+    VulkanTick();
+}
+
+void Renderer::VulkanTick()
+{
     constexpr uint64_t kTimeoutNs = 1'000'000'000ULL;
 
     vulkanBackend.device.waitForFences(*vulkanBackend.submitFinishedFences[vulkanBackend.currentFrameIndex], true, kTimeoutNs);
@@ -412,12 +417,6 @@ void Renderer::LoopTick()
         });
 
     vulkanBackend.currentFrameIndex = (vulkanBackend.currentFrameIndex + 1) % kMaxFramesInFLight;
-}
-
-void Renderer::Loop(std::stop_token stopToken)
-{
-    while (!stopToken.stop_requested())
-        LoopTick();
 }
 
 }  // namespace tektonik::config

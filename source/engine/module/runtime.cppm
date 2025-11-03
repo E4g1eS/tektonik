@@ -22,13 +22,14 @@ class Runtime
         char** argv = nullptr;
     };
 
-    Runtime(const RunOptions& runOptions = RunOptions{}) : runOptions(runOptions) {}
+    Runtime(const RunOptions& runOptions = RunOptions{}) : runOptions(runOptions), configRenderer(configManager.Get()) {}
+
     Runtime(const Runtime&) = delete;
     Runtime& operator=(const Runtime&) = delete;
 
     void Init();
 
-    // Runs tests.
+    /// Runs tests.
     void Test() const;
 
   private:

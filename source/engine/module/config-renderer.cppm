@@ -1,18 +1,41 @@
 module;
+#include "imgui-wrapper.hpp"
 #include "sdl-wrapper.hpp"
 #include "std.hpp"
 #include "vulkan-wrapper.hpp"
 export module config_renderer;
 
+import config;
+
 namespace tektonik::config
 {
+
+/// Vulkan KHR surface wrapper with SDL constructor and destructor.
+class SurfaceWrapper
+{
+  public:
+    SurfaceWrapper() noexcept = default;
+    SurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window);
+    ~SurfaceWrapper();
+
+    SurfaceWrapper(const SurfaceWrapper&) = delete;
+    SurfaceWrapper(SurfaceWrapper&& other) noexcept = default;
+    SurfaceWrapper& operator=(const SurfaceWrapper&) = delete;
+    SurfaceWrapper& operator=(SurfaceWrapper&& other) noexcept = default;
+
+    vk::SurfaceKHR& operator*() { return surface; }
+
+  private:
+    vk::Instance instance{nullptr};
+    vk::SurfaceKHR surface{nullptr};
+};
 
 struct VulkanBackend
 {
     // Default constructed is enough.
     vk::raii::Context context{};
     vk::raii::Instance instance{nullptr};
-    vk::SurfaceKHR surface{nullptr};
+    SurfaceWrapper surface{};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
     // I assume ImGUI needs graphics queue.
     uint32_t queueFamily{};
@@ -45,22 +68,29 @@ struct VulkanBackend
 export class Renderer
 {
   public:
-    Renderer() = default;
+    Renderer() noexcept = default;
+    /// Due to SDL usage, must be run on main thread.
+    Renderer(Manager& manager);
+    /// Due to SDL usage, must be run on main thread.
+    ~Renderer();
+
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
-    void Init(bool launchThread = true);
-    void Stop();
+    /// Run every frame.
+    /// Due to SDL usage, must be run on main thread.
+    void Tick();
 
-    //! Can be run on main thread manually.
-    void LoopTick();
+    /// Handle SDL event.
+    void HandleEvent(const SDL_Event& event) { ImGui_ImplSDL3_ProcessEvent(&event); }
 
   private:
-    void Loop(std::stop_token stopToken);
+    void VulkanTick();
 
+    Manager* manager = nullptr;
     SDL_Window* window = nullptr;
+    ImGuiContext* imGuiContext = nullptr;
     VulkanBackend vulkanBackend{};
-    std::jthread loopThread{};
 };
 
 }  // namespace tektonik::config

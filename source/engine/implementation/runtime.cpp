@@ -18,19 +18,24 @@ void Runtime::Init()
     auto argMap = util::string::ParseCommandLineArgumentsToMap(runOptions.argc, runOptions.argv);
     Singleton<Logger>::Get().Log(std::format("Loaded command line arguments: {}", argMap));
 
-    configRenderer.Init(false);
-
     SDL_Event event;
-    while (true)
+
+    bool running = true;
+    while (running)
     {
-        SDL_PollEvent(&event);
-        if (event.type == SDL_EVENT_QUIT)
-            break;
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_EVENT_QUIT)
+            {
+                running = false;
+                break;
+            }
 
-        configRenderer.LoopTick();
+            configRenderer.HandleEvent(event);
+        }
+
+        configRenderer.Tick();
     }
-
-    configRenderer.Stop();
 }
 
 void Runtime::Test() const

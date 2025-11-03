@@ -26,6 +26,11 @@ export std::ostream& operator<<(std::ostream& os, const tektonik::concepts::Tiab
 namespace tektonik::util
 {
 
+export void MoveDelete(auto& object)
+{
+    auto temporary = std::move(object);
+}
+
 namespace ranges
 {
 
