@@ -26,7 +26,58 @@ struct FixedString
     char str[Length];
 };
 
-void SomeFunction()
+template <size_t N>
+FixedString(const char (&)[N]) -> FixedString<N - 1>;
+
+export template <FixedString... enumValues>
+class StringEnum
 {
-    std::string str;
+  public:
+    constexpr StringEnum() = default;
+    constexpr StringEnum(const char* enumValue) : option(ToOption(enumValue)) {}
+
+    constexpr operator int() const { return option; }
+
+    explicit operator std::string() const { return std::string("unimplemented so far"); }
+
+  private:
+    constexpr static int ToOption(const char* str)
+    {
+        int counter = 0;
+        int option = -1;
+
+        (
+            [&]
+            {
+                if (enumValues.IsSameAs(str))
+                    option = counter;
+
+                ++counter;
+            }(),
+            ...);
+
+        return option;
+    }
+
+    int option = 0;
+};
+
+using Animal = StringEnum<"cat", "dog", "frog">;
+
+void Func()
+{
+    // ReflectiveEnum<"dog"> dogEnum;
+    // std::string dogStr = dogEnum.GetStr();
+
+    Animal animal = Animal("dog");
+
+    switch (animal)
+    {
+        case Animal("dog"):
+            std::cout << "animals is dog" << std::endl;
+            break;
+        default:
+            std::cout << "animals is not zero" << std::endl;
+            break;
+    }
 }

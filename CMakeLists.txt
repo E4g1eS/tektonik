@@ -74,7 +74,6 @@ if(MSVC)
         FILE_SET std_module TYPE CXX_MODULES
         FILES "source/std.ixx"
     )
-else()
 endif()
 
 # Add own implementations
