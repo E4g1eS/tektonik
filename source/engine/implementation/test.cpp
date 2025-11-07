@@ -8,6 +8,7 @@ import ecs;
 import singleton;
 import logger;
 import util;
+import string_enum;
 
 namespace tektonik::test
 {
@@ -51,6 +52,25 @@ std::vector<TestData>& GetTestsVector()
 #else
 #define ADD_TEST_FUNC(funcName) void funcName()
 #endif
+
+ADD_TEST_FUNC(TestStringEnum)
+{
+    using AnimalType = StringEnum<"cat", "dog", "frog">;
+
+    AnimalType animal1{"dog"};
+
+    TestAssert(static_cast<int>(animal1) == 1, "animal1 'dog' should map to 1.");
+
+    switch (animal1)
+    {
+        case AnimalType("dog"):
+            TestAssert(true, "animal1 is a dog");
+            break;
+        default:
+            TestAssert(false, "animal1 should be a dog");
+            break;
+    }
+}
 
 ADD_TEST_FUNC(TestTheTest)
 {
