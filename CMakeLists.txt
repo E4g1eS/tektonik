@@ -62,6 +62,21 @@ target_sources(Engine
     FILES ${ENGINE_MODULE_NAMES}
 )
 
+# MSVC import std support
+if(MSVC)
+    message(STATUS "Configuring MSVC std module import")
+    file(COPY
+        "$ENV{VCToolsInstallDir}/modules/std.ixx"
+        DESTINATION "${CMAKE_SOURCE_DIR}/source"
+    )
+    target_sources(Engine
+        PUBLIC
+        FILE_SET std_module TYPE CXX_MODULES
+        FILES "source/std.ixx"
+    )
+else()
+endif()
+
 # Add own implementations
 file(GLOB_RECURSE ENGINE_IMPLEMENTATION_NAMES "source/engine/implementation/*.cpp")
 target_sources(Engine PUBLIC ${ENGINE_IMPLEMENTATION_NAMES} )

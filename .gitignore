@@ -22,3 +22,6 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
+
+# MSVC std import support
+source/std.ixx
