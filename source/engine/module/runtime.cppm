@@ -1,5 +1,4 @@
 module;
-#include "std.hpp"
 export module runtime;
 
 import app;
@@ -38,7 +37,6 @@ class Runtime
     Singleton<config::Manager> configManager;
     SdlRuntime sdlRuntime;
     config::Renderer configRenderer;
-    std::jthread configRendererThread;
 };
 
 }  // namespace tektonik

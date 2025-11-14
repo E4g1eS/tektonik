@@ -1,6 +1,7 @@
 module;
-#include "std.hpp"
 export module util;
+
+import std;
 
 // Utility functions and classes that do not fit anywhere else.
 

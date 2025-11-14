@@ -1,6 +1,5 @@
 module;
 #include "sdl-wrapper.hpp"
-#include "std.hpp"
 export module sdl_runtime;
 
 import singleton;

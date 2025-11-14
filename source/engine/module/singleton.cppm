@@ -1,6 +1,9 @@
 module;
-#include "std.hpp"
+#include "common-defines.hpp"
 export module singleton;
+
+import std;
+import assert;
 
 namespace tektonik
 {

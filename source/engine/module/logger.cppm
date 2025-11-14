@@ -1,11 +1,11 @@
 module;
-#include "std.hpp"
 export module logger;
 
 import common;
 import singleton;
 import concepts;
 import util;
+import std;
 
 namespace tektonik
 {

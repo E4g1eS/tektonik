@@ -1,15 +1,18 @@
 module;
-#include "std.hpp"
+#include "common-defines.hpp"
 export module ecs;
 
 import sparse_set;
 import concepts;
+import std;
+import common;
+import assert;
 
 export namespace tektonik::ecs
 {
 
 // Basically just an ID.
-using Entity = uint32_t;
+using Entity = u32;
 
 class EntityManager
 {

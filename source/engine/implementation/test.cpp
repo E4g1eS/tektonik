@@ -1,8 +1,8 @@
 module;
-#include "std.hpp"
 #include "sdl-wrapper.hpp"
 module test;
 
+import std;
 import sparse_set;
 import ecs;
 import singleton;

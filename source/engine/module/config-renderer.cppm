@@ -1,11 +1,11 @@
 module;
 #include "imgui-wrapper.hpp"
 #include "sdl-wrapper.hpp"
-#include "std.hpp"
 #include "vulkan-wrapper.hpp"
 export module config_renderer;
 
 import config;
+import std;
 
 namespace tektonik::config
 {

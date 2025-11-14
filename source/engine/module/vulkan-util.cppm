@@ -1,8 +1,8 @@
 module;
-#include "std.hpp"
 #include "vulkan-wrapper.hpp"
 export module vulkan_util;
 
+import std;
 import util;
 import singleton;
 import logger;

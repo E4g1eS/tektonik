@@ -1,9 +1,9 @@
 module;
-#include "std.hpp"
 export module components;
 
 import glm;
 import ecs;
+import std;
 
 // A collection of "default" components.
 namespace tektonik::components

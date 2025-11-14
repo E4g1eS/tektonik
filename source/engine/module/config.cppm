@@ -1,10 +1,13 @@
 module;
-#include "std.hpp"
+#include "common-defines.hpp"
 export module config;
 
 import singleton;
 import concepts;
 import util;
+import std;
+import common;
+import assert;
 
 namespace tektonik::config
 {
@@ -37,8 +40,8 @@ class Variable
     T value = T();
 };
 export using String = Variable<std::string>;
-export using Int32 = Variable<int32_t>;
-export using UInt32 = Variable<uint32_t>;
+export using Int32 = Variable<i32>;
+export using UInt32 = Variable<u32>;
 export using Float = Variable<float>;
 export using Bool = Variable<bool>;
 

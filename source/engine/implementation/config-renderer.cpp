@@ -1,7 +1,7 @@
 module;
+#include "common-defines.hpp"
 #include "imgui-wrapper.hpp"
 #include "sdl-wrapper.hpp"
-#include "std.hpp"
 #include "vulkan-wrapper.hpp"
 module config_renderer;
 
@@ -10,6 +10,7 @@ import util;
 import logger;
 import vulkan_util;
 import util;
+import std;
 
 namespace tektonik::config
 {
@@ -383,13 +384,15 @@ void Renderer::AddImGuiThings()
 
     for (const auto& [name, value] : variables)
     {
-        std::visit([](auto&& arg)
+        std::visit(
+            [](auto&& arg)
             {
-            using T = std::remove_cvref_t<decltype(arg)>;
+                using T = std::remove_cvref_t<decltype(arg)>;
 
-            if constexpr (std::is_same_v<T, String*>)
-                ImGui::Text((**arg).c_str());
-            }, value);
+                if constexpr (std::is_same_v<T, String*>)
+                    ImGui::Text((**arg).c_str());
+            },
+            value);
     }
 
     ImGui::End();
