@@ -61,23 +61,3 @@ class StringEnum
 
     int option = 0;
 };
-
-using Animal = StringEnum<"cat", "dog", "frog">;
-
-void Func()
-{
-    // ReflectiveEnum<"dog"> dogEnum;
-    // std::string dogStr = dogEnum.GetStr();
-
-    Animal animal = Animal("dog");
-
-    switch (animal)
-    {
-        case Animal("dog"):
-            std::cout << "animals is dog" << std::endl;
-            break;
-        default:
-            std::cout << "animals is not zero" << std::endl;
-            break;
-    }
-}
