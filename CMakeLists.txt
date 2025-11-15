@@ -45,11 +45,27 @@ target_sources(Engine PUBLIC
 
 # Vulkan
 find_package(Vulkan REQUIRED)
-message(STATUS "[Vulkan] Found package: ${Vulkan_FOUND}")
-message(STATUS "[Vulkan] Version: ${Vulkan_VERSION}")
-message(STATUS "[Vulkan] Include dirs: ${Vulkan_INCLUDE_DIR}")
 
-target_link_libraries(Engine PUBLIC Vulkan::Vulkan)
+add_library(VulkanCppModule)
+
+target_compile_definitions(VulkanCppModule PUBLIC
+        VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
+        VULKAN_HPP_NO_STRUCT_CONSTRUCTORS=1
+        VULKAN_HPP_HANDLES_MOVE_EXCHANGE=1
+)
+
+target_include_directories(VulkanCppModule PRIVATE "${Vulkan_INCLUDE_DIR}")
+
+target_link_libraries(VulkanCppModule PUBLIC Vulkan::Vulkan)
+
+target_sources(VulkanCppModule
+        PUBLIC
+        FILE_SET cxx_modules TYPE CXX_MODULES
+        BASE_DIRS "${Vulkan_INCLUDE_DIR}"
+        FILES "${Vulkan_INCLUDE_DIR}/vulkan/vulkan.cppm"
+)
+
+target_link_libraries(Engine PUBLIC VulkanCppModule)
 
 # Add own headers
 target_include_directories(Engine PUBLIC "source/engine/header")

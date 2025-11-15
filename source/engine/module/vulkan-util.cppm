@@ -1,12 +1,12 @@
 module;
 #include "std.hpp"
-#include "vulkan-wrapper.hpp"
 export module vulkan_util;
 
 import util;
 import singleton;
 import logger;
 import concepts;
+import vulkan_hpp;
 
 namespace tektonik::vulkan::util
 {

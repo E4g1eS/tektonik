@@ -2,7 +2,6 @@ module;
 #include "imgui-wrapper.hpp"
 #include "sdl-wrapper.hpp"
 #include "std.hpp"
-#include "vulkan-wrapper.hpp"
 module config_renderer;
 
 import singleton;
@@ -10,6 +9,7 @@ import util;
 import logger;
 import vulkan_util;
 import util;
+import vulkan_hpp;
 
 namespace tektonik::config
 {
@@ -429,7 +429,7 @@ void Renderer::VulkanTick()
         commandBuffer.reset();
         commandBuffer.begin({});
 
-        vk::ClearValue clearValue{.color = vk::ClearColorValue{}.setFloat32({0.0f, 0.0f, 0.0f, 1.0f})};
+        vk::ClearValue clearValue = vk::ClearValue(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
 
         commandBuffer.beginRenderPass(
             vk::RenderPassBeginInfo{
