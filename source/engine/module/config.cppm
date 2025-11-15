@@ -73,7 +73,7 @@ Variable<T>::Variable(const concepts::StringLike auto& name, const T& defaultVal
 template <typename T>
 Variable<T>::~Variable()
 {
-    if (name != "")
+    if (name != "" && Singleton<Manager>::IsInitialized())
         Singleton<Manager>::Get().UnregisterVariable(name);
 }
 

@@ -36,6 +36,8 @@ class Singleton
         return *(GetContained());
     }
 
+    static bool IsInitialized() { return GetContained().has_value(); }
+
   private:
     static auto& GetContained()
     {
