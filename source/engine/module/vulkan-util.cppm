@@ -1,5 +1,5 @@
 module;
-#include "std.hpp"
+#include "common-defines.hpp"
 export module vulkan_util;
 
 import util;

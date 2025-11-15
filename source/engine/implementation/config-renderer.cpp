@@ -1,7 +1,7 @@
 module;
 #include "imgui-wrapper.hpp"
 #include "sdl-wrapper.hpp"
-#include "std.hpp"
+#include "common-defines.hpp"
 module config_renderer;
 
 import singleton;

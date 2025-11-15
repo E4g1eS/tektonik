@@ -1,5 +1,5 @@
 module;
-#include "std.hpp"
+#include "common-defines.hpp"
 export module ecs;
 
 import sparse_set;

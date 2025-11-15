@@ -1,6 +1,6 @@
 module;
 #include "sdl-wrapper.hpp"
-#include "std.hpp"
+#include "common-defines.hpp"
 module runtime;
 
 import test;

@@ -1,5 +1,5 @@
 module;
-#include "std.hpp"
+#include "common-defines.hpp"
 module util;
 
 import singleton;

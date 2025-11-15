@@ -1,5 +1,5 @@
 module;
-#include "std.hpp"
+#include "common-defines.hpp"
 #include "sdl-wrapper.hpp"
 module test;
 

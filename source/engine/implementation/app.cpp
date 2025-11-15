@@ -1,6 +1,6 @@
 module;
 #include "sdl-wrapper.hpp"
-#include "std.hpp"
+#include "common-defines.hpp"
 module app;
 
 namespace tektonik
