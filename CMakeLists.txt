@@ -49,6 +49,7 @@ find_package(Vulkan REQUIRED)
 add_library(VulkanCppModule)
 
 target_compile_definitions(VulkanCppModule PUBLIC
+        VULKAN_HPP_NO_SPACESHIP_OPERATOR=1
         VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1
         VULKAN_HPP_NO_STRUCT_CONSTRUCTORS=1
         VULKAN_HPP_HANDLES_MOVE_EXCHANGE=1

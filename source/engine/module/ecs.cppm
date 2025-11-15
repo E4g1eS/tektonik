@@ -4,12 +4,13 @@ export module ecs;
 
 import sparse_set;
 import concepts;
+import std;
 
 export namespace tektonik::ecs
 {
 
 // Basically just an ID.
-using Entity = uint32_t;
+using Entity = std::uint32_t;
 
 class EntityManager
 {

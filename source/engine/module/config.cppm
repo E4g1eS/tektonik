@@ -5,6 +5,7 @@ export module config;
 import singleton;
 import concepts;
 import util;
+import std;
 
 namespace tektonik::config
 {
@@ -37,8 +38,8 @@ class Variable
     T value = T();
 };
 export using String = Variable<std::string>;
-export using Int32 = Variable<int32_t>;
-export using UInt32 = Variable<uint32_t>;
+export using Int32 = Variable<std::int32_t>;
+export using UInt32 = Variable<std::uint32_t>;
 export using Float = Variable<float>;
 export using Bool = Variable<bool>;
 

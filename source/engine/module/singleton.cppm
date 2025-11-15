@@ -2,6 +2,8 @@ module;
 #include "std.hpp"
 export module singleton;
 
+import std;
+
 namespace tektonik
 {
 

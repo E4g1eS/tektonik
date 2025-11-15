@@ -2,6 +2,8 @@ module;
 #include "std.hpp"
 export module sparse_set;
 
+import std;
+
 namespace tektonik
 {
 

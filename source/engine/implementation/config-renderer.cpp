@@ -10,6 +10,7 @@ import logger;
 import vulkan_util;
 import util;
 import vulkan_hpp;
+import std;
 
 namespace tektonik::config
 {

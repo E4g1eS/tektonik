@@ -9,6 +9,7 @@ import singleton;
 import logger;
 import util;
 import string_enum;
+import std;
 
 namespace tektonik::test
 {

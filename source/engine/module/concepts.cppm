@@ -2,6 +2,8 @@ module;
 #include <std.hpp>
 export module concepts;
 
+import std;
+
 namespace tektonik::concepts
 {
 
