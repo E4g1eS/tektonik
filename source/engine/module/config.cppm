@@ -6,6 +6,7 @@ import singleton;
 import concepts;
 import util;
 import std;
+import assert;
 
 namespace tektonik::config
 {

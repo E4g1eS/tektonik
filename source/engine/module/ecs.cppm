@@ -5,6 +5,7 @@ export module ecs;
 import sparse_set;
 import concepts;
 import std;
+import assert;
 
 export namespace tektonik::ecs
 {

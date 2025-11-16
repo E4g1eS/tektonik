@@ -4,6 +4,7 @@ module util;
 
 import singleton;
 import logger;
+import assert;
 
 namespace tektonik::util
 {

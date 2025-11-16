@@ -2,6 +2,7 @@ module;
 #include "common-defines.hpp"
 export module singleton;
 
+import assert;
 import std;
 
 namespace tektonik

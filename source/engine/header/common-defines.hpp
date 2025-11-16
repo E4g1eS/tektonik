@@ -8,7 +8,7 @@
 #ifdef NDEBUG
 #define ASSUMERT(condition) [[assume(condition)]]
 #else
-#define ASSUMERT(condition) //assert(condition)
+#define ASSUMERT(condition) ::tektonik::assertion::Assert(condition)
 #endif
 
 #ifdef NDEBUG

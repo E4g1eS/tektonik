@@ -3,6 +3,7 @@ module;
 export module sparse_set;
 
 import std;
+import assert;
 
 namespace tektonik
 {
