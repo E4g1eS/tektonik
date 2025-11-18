@@ -28,8 +28,11 @@ class Variable
     Variable(const Variable&) = delete;
     Variable& operator=(const Variable&) = delete;
 
-    T& operator*() { return value; }
-    const T& operator*() const { return value; }
+    auto& operator*(this auto&& self) { return self.GetValue(); }
+    auto* operator->(this auto&& self) { return &self.GetValue(); }
+
+    auto& GetName(this auto&& self) { return self.name; }
+    auto& GetValue(this auto&& self) { return self.value; }
 
     // Specialize this for other types.
     void LoadFromStringView(const std::string_view& input) { value = input; }
@@ -38,11 +41,11 @@ class Variable
     std::string name = "";
     T value = T();
 };
-export using String = Variable<std::string>;
-export using Int32 = Variable<std::int32_t>;
-export using UInt32 = Variable<std::uint32_t>;
-export using Float = Variable<float>;
-export using Bool = Variable<bool>;
+export using ConfigString = Variable<std::string>;
+export using ConfigI32 = Variable<std::int32_t>;
+export using ConfigU32 = Variable<std::uint32_t>;
+export using ConfigFloat = Variable<float>;
+export using ConfigBool = Variable<bool>;
 
 export class Manager
 {
@@ -62,7 +65,7 @@ export class Manager
     auto& GetVariables() { return variables; }
 
   private:
-    std::map<std::string, std::variant<String*, Int32*, UInt32*, Float*, Bool*>> variables;
+    std::map<std::string, std::variant<ConfigString*, ConfigI32*, ConfigU32*, ConfigFloat*, ConfigBool*>> variables;
 };
 
 template <typename T>

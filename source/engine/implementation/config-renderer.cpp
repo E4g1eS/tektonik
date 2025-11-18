@@ -1,7 +1,7 @@
 module;
+#include "common-defines.hpp"
 #include "imgui-wrapper.hpp"
 #include "sdl-wrapper.hpp"
-#include "common-defines.hpp"
 module config_renderer;
 
 import singleton;
@@ -11,6 +11,7 @@ import vulkan_util;
 import util;
 import vulkan_hpp;
 import std;
+import assert;
 
 namespace tektonik::config
 {
@@ -380,20 +381,64 @@ void Renderer::AddImGuiThings()
 
     ImGui::Begin("Variables");
 
-    static String debugString("DebugString", "Hello config");
+    static ConfigString debugString("DebugString", "Hello config");
 
     for (const auto& [name, value] : variables)
-    {
-        std::visit([](auto&& arg)
-            {
-            using T = std::remove_cvref_t<decltype(arg)>;
-
-            if constexpr (std::is_same_v<T, String*>)
-                ImGui::Text((**arg).c_str());
-            }, value);
-    }
+        std::visit([this](auto* arg) { AddVariable(*arg); }, value);
 
     ImGui::End();
+}
+
+int ImGuiStringResizeCallback(ImGuiInputTextCallbackData* callbackData)
+{
+    if (callbackData->EventFlag != ImGuiInputTextFlags_CallbackResize)
+        return 0;
+
+    ASSUMERT(callbackData->UserData != nullptr);
+    ConfigString& configString = *static_cast<ConfigString*>(callbackData->UserData);
+
+    if (callbackData->BufSize <= configString->capacity())
+        return 0;
+
+    configString.GetValue().reserve(callbackData->BufSize);
+    callbackData->Buf = configString->data();
+
+    static ConfigBool logResizeCalls("LogStringResizeCallbacks", false);
+    if (*logResizeCalls)
+        Singleton<Logger>::Get().Log(std::format("Resized ConfigString '{}' to size {}.", configString.GetName(), callbackData->BufSize));
+
+    return 0;
+}
+
+void Renderer::AddVariable(ConfigString& configString)
+{
+    ImGui::InputText(
+        configString.GetName().c_str(),
+        configString->data(),
+        configString->capacity(),
+        ImGuiInputTextFlags_CallbackResize,
+        ImGuiStringResizeCallback,
+        static_cast<void*>(&configString));
+}
+
+void Renderer::AddVariable(ConfigI32& configI32)
+{
+    ImGui::InputInt(configI32.GetName().c_str(), &*configI32);
+}
+
+void Renderer::AddVariable(ConfigU32& configU32)
+{
+    ImGui::InputScalar(configU32.GetName().c_str(), ImGuiDataType_U32, &*configU32);
+}
+
+void Renderer::AddVariable(ConfigFloat& configFloat)
+{
+    ImGui::InputFloat(configFloat.GetName().c_str(), &*configFloat);
+}
+
+void Renderer::AddVariable(ConfigBool& configBool)
+{
+    ImGui::Checkbox(configBool.GetName().c_str(), &*configBool);
 }
 
 void Renderer::VulkanTick()

@@ -89,6 +89,15 @@ export class Renderer
 
   private:
     void AddImGuiThings();
+
+    // Specific variable adders.
+
+    void AddVariable(ConfigString& configString);
+    void AddVariable(ConfigI32& configI32);
+    void AddVariable(ConfigU32& configU32);
+    void AddVariable(ConfigFloat& configFloat);
+    void AddVariable(ConfigBool& configBool);
+
     void VulkanTick();
     void RecreateSwapchain();
 
