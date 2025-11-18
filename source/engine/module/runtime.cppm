@@ -8,6 +8,7 @@ import singleton;
 import config;
 import config_renderer;
 import sdl_runtime;
+import renderer;
 
 export namespace tektonik
 {
@@ -38,7 +39,7 @@ class Runtime
     Singleton<config::Manager> configManager;
     SdlRuntime sdlRuntime;
     config::Renderer configRenderer;
-    std::jthread configRendererThread;
+    renderer::Renderer renderer;
 };
 
 }  // namespace tektonik

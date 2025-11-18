@@ -16,7 +16,7 @@ struct VulkanBackend
     // Default constructed is enough.
     vk::raii::Context context{};
     vk::raii::Instance instance{nullptr};
-    vulkan::util::SdlRaiiSurfaceWrapper surface{};
+    vulkan::util::RaiiSurfaceWrapper surface{};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
     // I assume ImGUI needs graphics queue.
     uint32_t queueFamily{};

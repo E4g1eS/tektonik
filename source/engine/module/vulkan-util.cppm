@@ -8,6 +8,7 @@ import singleton;
 import logger;
 import concepts;
 import vulkan_hpp;
+import glm;
 
 namespace tektonik::vulkan::util
 {
@@ -57,18 +58,68 @@ export bool AreDeviceExtensionsSupported(
     return unavailables.empty();
 }
 
-/// Vulkan KHR surface wrapper with SDL constructor and destructor.
-export class SdlRaiiSurfaceWrapper
+export class RaiiWindowWrapper
 {
   public:
-    SdlRaiiSurfaceWrapper() noexcept = default;
-    SdlRaiiSurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window);
-    ~SdlRaiiSurfaceWrapper();
+    struct CreateInfo
+    {
+        std::string title = "Untitled window";
+        glm::ivec2 size = {800, 600};
+        SDL_WindowFlags flags = 0;
+    };
 
-    SdlRaiiSurfaceWrapper(const SdlRaiiSurfaceWrapper&) = delete;
-    SdlRaiiSurfaceWrapper(SdlRaiiSurfaceWrapper&& other) noexcept = default;
-    SdlRaiiSurfaceWrapper& operator=(const SdlRaiiSurfaceWrapper&) = delete;
-    SdlRaiiSurfaceWrapper& operator=(SdlRaiiSurfaceWrapper&& other) noexcept = default;
+    RaiiWindowWrapper() noexcept = default;
+    RaiiWindowWrapper(const CreateInfo& createInfo)
+    {
+        window = SDL_CreateWindow(createInfo.title.c_str(), createInfo.size.x, createInfo.size.y, createInfo.flags | SDL_WINDOW_VULKAN);
+        if (!window)
+            throw std::runtime_error("Could not create SDL window.");
+    }
+    ~RaiiWindowWrapper()
+    {
+        if (window)
+            SDL_DestroyWindow(window);
+    }
+
+    RaiiWindowWrapper(RaiiWindowWrapper&& other) : window(std::exchange(other.window, nullptr)) {}
+    RaiiWindowWrapper& operator=(RaiiWindowWrapper&& other)
+    {
+        if (this != &other)
+            window = std::exchange(other.window, nullptr);
+        return *this;
+    }
+
+    RaiiWindowWrapper(const RaiiWindowWrapper& other) = delete;
+    RaiiWindowWrapper& operator=(const RaiiWindowWrapper& other) = delete;
+
+
+  private:
+    SDL_Window* window;
+};
+
+/// Vulkan KHR surface wrapper with SDL constructor and destructor.
+export class RaiiSurfaceWrapper
+{
+  public:
+    RaiiSurfaceWrapper() noexcept = default;
+    RaiiSurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window) : instance(*instance)
+    {
+        VkSurfaceKHR cSurface;
+        if (!SDL_Vulkan_CreateSurface(window, *instance, nullptr, &cSurface))
+            throw std::runtime_error("Could not create a Vulkan surface.");
+
+        surface = cSurface;
+    }
+    ~RaiiSurfaceWrapper()
+    {
+        if (instance && surface)
+            SDL_Vulkan_DestroySurface(instance, surface, nullptr);
+    }
+
+    RaiiSurfaceWrapper(const RaiiSurfaceWrapper&) = delete;
+    RaiiSurfaceWrapper(RaiiSurfaceWrapper&& other) noexcept = default;
+    RaiiSurfaceWrapper& operator=(const RaiiSurfaceWrapper&) = delete;
+    RaiiSurfaceWrapper& operator=(RaiiSurfaceWrapper&& other) noexcept = default;
 
     vk::SurfaceKHR& operator*() { return surface; }
 
@@ -76,21 +127,5 @@ export class SdlRaiiSurfaceWrapper
     vk::Instance instance{nullptr};
     vk::SurfaceKHR surface{nullptr};
 };
-
-SdlRaiiSurfaceWrapper::SdlRaiiSurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window) : instance(instance)
-{
-    VkSurfaceKHR cSurface;
-    if (!SDL_Vulkan_CreateSurface(window, *instance, nullptr, &cSurface))
-        throw std::runtime_error("Could not create a Vulkan surface.");
-
-    surface = cSurface;
-}
-
-SdlRaiiSurfaceWrapper::~SdlRaiiSurfaceWrapper()
-{
-    if (instance && surface)
-        SDL_Vulkan_DestroySurface(instance, surface, nullptr);
-}
-
 
 }  // namespace tektonik::vulkan::util

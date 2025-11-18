@@ -280,7 +280,7 @@ VulkanBackend::SwapchainWrapper CreateSwapchainWrapper(
 void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
 {
     backend.instance = CreateInstance(backend.context);
-    backend.surface = vulkan::util::SdlRaiiSurfaceWrapper(backend.instance, window);
+    backend.surface = vulkan::util::RaiiSurfaceWrapper(backend.instance, window);
     backend.physicalDevice = ChoosePhysicalDevice(backend.instance);
     backend.queueFamily = GetGraphicsQueueFamily(backend.physicalDevice);
     backend.device = CreateDevice(backend.physicalDevice, backend.queueFamily);
