@@ -1,5 +1,6 @@
 module;
 #include "common-defines.hpp"
+#include "sdl-wrapper.hpp"
 export module vulkan_util;
 
 import util;
@@ -55,5 +56,41 @@ export bool AreDeviceExtensionsSupported(
 
     return unavailables.empty();
 }
+
+/// Vulkan KHR surface wrapper with SDL constructor and destructor.
+export class SdlRaiiSurfaceWrapper
+{
+  public:
+    SdlRaiiSurfaceWrapper() noexcept = default;
+    SdlRaiiSurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window);
+    ~SdlRaiiSurfaceWrapper();
+
+    SdlRaiiSurfaceWrapper(const SdlRaiiSurfaceWrapper&) = delete;
+    SdlRaiiSurfaceWrapper(SdlRaiiSurfaceWrapper&& other) noexcept = default;
+    SdlRaiiSurfaceWrapper& operator=(const SdlRaiiSurfaceWrapper&) = delete;
+    SdlRaiiSurfaceWrapper& operator=(SdlRaiiSurfaceWrapper&& other) noexcept = default;
+
+    vk::SurfaceKHR& operator*() { return surface; }
+
+  private:
+    vk::Instance instance{nullptr};
+    vk::SurfaceKHR surface{nullptr};
+};
+
+SdlRaiiSurfaceWrapper::SdlRaiiSurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window) : instance(instance)
+{
+    VkSurfaceKHR cSurface;
+    if (!SDL_Vulkan_CreateSurface(window, *instance, nullptr, &cSurface))
+        throw std::runtime_error("Could not create a Vulkan surface.");
+
+    surface = cSurface;
+}
+
+SdlRaiiSurfaceWrapper::~SdlRaiiSurfaceWrapper()
+{
+    if (instance && surface)
+        SDL_Vulkan_DestroySurface(instance, surface, nullptr);
+}
+
 
 }  // namespace tektonik::vulkan::util

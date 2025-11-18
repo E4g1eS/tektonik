@@ -280,7 +280,7 @@ VulkanBackend::SwapchainWrapper CreateSwapchainWrapper(
 void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
 {
     backend.instance = CreateInstance(backend.context);
-    backend.surface = SurfaceWrapper(backend.instance, window);
+    backend.surface = vulkan::util::SdlRaiiSurfaceWrapper(backend.instance, window);
     backend.physicalDevice = ChoosePhysicalDevice(backend.instance);
     backend.queueFamily = GetGraphicsQueueFamily(backend.physicalDevice);
     backend.device = CreateDevice(backend.physicalDevice, backend.queueFamily);
@@ -297,21 +297,6 @@ void InitVulkanBackend(VulkanBackend& backend, SDL_Window* window)
         backend.queueFamily,
         backend.renderPass,
         backend.commandPool);
-}
-
-SurfaceWrapper::SurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window) : instance(instance)
-{
-    VkSurfaceKHR cSurface;
-    if (!SDL_Vulkan_CreateSurface(window, *instance, nullptr, &cSurface))
-        throw std::runtime_error("Could not create a Vulkan surface.");
-
-    surface = cSurface;
-}
-
-SurfaceWrapper::~SurfaceWrapper()
-{
-    if (instance && surface)
-        SDL_Vulkan_DestroySurface(instance, surface, nullptr);
 }
 
 Renderer::Renderer(Manager& manager) : manager(&manager)

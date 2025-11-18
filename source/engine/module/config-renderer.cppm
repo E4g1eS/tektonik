@@ -6,36 +6,17 @@ export module config_renderer;
 
 import config;
 import vulkan_hpp;
+import vulkan_util;
 
 namespace tektonik::config
 {
-
-/// Vulkan KHR surface wrapper with SDL constructor and destructor.
-class SurfaceWrapper
-{
-  public:
-    SurfaceWrapper() noexcept = default;
-    SurfaceWrapper(const vk::raii::Instance& instance, SDL_Window* window);
-    ~SurfaceWrapper();
-
-    SurfaceWrapper(const SurfaceWrapper&) = delete;
-    SurfaceWrapper(SurfaceWrapper&& other) noexcept = default;
-    SurfaceWrapper& operator=(const SurfaceWrapper&) = delete;
-    SurfaceWrapper& operator=(SurfaceWrapper&& other) noexcept = default;
-
-    vk::SurfaceKHR& operator*() { return surface; }
-
-  private:
-    vk::Instance instance{nullptr};
-    vk::SurfaceKHR surface{nullptr};
-};
 
 struct VulkanBackend
 {
     // Default constructed is enough.
     vk::raii::Context context{};
     vk::raii::Instance instance{nullptr};
-    SurfaceWrapper surface{};
+    vulkan::util::SdlRaiiSurfaceWrapper surface{};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
     // I assume ImGUI needs graphics queue.
     uint32_t queueFamily{};
