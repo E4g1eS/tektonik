@@ -6,18 +6,20 @@ module;
 module renderer;
 
 import common;
+import singleton;
+import logger;
 
 namespace tektonik::renderer
 {
 
 Renderer::Renderer()
+    : window(vulkan::util::RaiiWindowWrapper(vulkan::util::RaiiWindowWrapper::CreateInfo{.title = *windowTitle})), vulkanInvariants(window)
 {
-    window = vulkan::util::RaiiWindowWrapper(vulkan::util::RaiiWindowWrapper::CreateInfo{.title = *windowTitle});
 }
 
-VulkanInvariants::VulkanInvariants(SDL_Window& window)
+VulkanInvariants::VulkanInvariants(vulkan::util::RaiiWindowWrapper& windowWrapper)
+    : instance(CreateInstance()), surface(instance, windowWrapper), physicalDevice(ChoosePhysicalDevice())
 {
-    instance = CreateInstance();
 }
 
 vk::raii::Instance VulkanInvariants::CreateInstance()
@@ -49,19 +51,78 @@ vk::raii::Instance VulkanInvariants::CreateInstance()
         });
 }
 
-vulkan::util::RaiiSurfaceWrapper VulkanInvariants::CreateSurface()
-{
-    return vulkan::util::RaiiSurfaceWrapper();
-}
-
 vk::raii::PhysicalDevice VulkanInvariants::ChoosePhysicalDevice()
 {
-    return vk::raii::PhysicalDevice(nullptr);
+    std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+
+    Singleton<Logger>::Get().Log(std::format("Found {} physical devices available for Vulkan.", physicalDevices.size()));
+
+    std::vector<PhysicalDeviceCandidate> candidates = physicalDevices |
+                                                      std::views::transform([](vk::raii::PhysicalDevice pd) { return PhysicalDeviceCandidate(pd); }) |
+                                                      std::ranges::to<std::vector<PhysicalDeviceCandidate>>();
+
+    std::ranges::sort(candidates, std::greater{});
+
+    if (candidates.empty() || !candidates[0].IsUsable())
+        throw std::runtime_error("There is no usable Vulkan device.");
+
+    PhysicalDeviceCandidate& bestCandidate = candidates[0];
+    Singleton<Logger>::Get().Log(std::format("Chosen physical device: '{}'", static_cast<std::string_view>(bestCandidate.properties.deviceName)));
+
+    return vk::raii::PhysicalDevice(instance, bestCandidate.physicalDevice);
 }
 
 vk::raii::Device VulkanInvariants::CreateDevice()
 {
     return vk::raii::Device(nullptr);
+}
+
+constexpr std::uint32_t PhysicalDeviceCandidate::GetTypeScore(vk::PhysicalDeviceType type) noexcept
+{
+    switch (type)
+    {
+        case vk::PhysicalDeviceType::eDiscreteGpu:
+            return 4;
+        case vk::PhysicalDeviceType::eIntegratedGpu:
+            return 3;
+        case vk::PhysicalDeviceType::eVirtualGpu:
+            return 2;
+        case vk::PhysicalDeviceType::eCpu:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+PhysicalDeviceCandidate::PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physicalDevice)
+    : physicalDevice(physicalDevice), properties(physicalDevice.getProperties())
+{
+    static config::ConfigBool printPhysicalDeviceDetails("PrintPhysicalDeviceDetails", true);
+
+    if (*printPhysicalDeviceDetails)
+        Singleton<Logger>::Get().Log(std::format("Found physical device: '{}'", static_cast<std::string_view>(properties.deviceName)));
+}
+
+bool PhysicalDeviceCandidate::IsUsable() const noexcept
+{
+    // TODO implement some "this is necessary" checks.
+
+    return true;
+}
+
+std::weak_ordering PhysicalDeviceCandidate::operator <=> (const PhysicalDeviceCandidate& other) const noexcept
+{
+    // TODO implement a better comparison.
+    if (auto usable = IsUsable() <=> other.IsUsable(); usable != std::strong_ordering::equal)
+        return usable;
+
+    if (auto typeScore = GetTypeScore(properties.deviceType) <=> other.GetTypeScore(other.properties.deviceType);
+        typeScore != std::strong_ordering::equal)
+    {
+        return typeScore;
+    }
+
+    return std::weak_ordering::equivalent;
 }
 
 }  // namespace tektonik::renderer

@@ -92,6 +92,7 @@ export class RaiiWindowWrapper
     RaiiWindowWrapper(const RaiiWindowWrapper& other) = delete;
     RaiiWindowWrapper& operator=(const RaiiWindowWrapper& other) = delete;
 
+    SDL_Window* GetSdlPointer() { return window; }
 
   private:
     SDL_Window* window;
@@ -109,6 +110,10 @@ export class RaiiSurfaceWrapper
             throw std::runtime_error("Could not create a Vulkan surface.");
 
         surface = cSurface;
+    }
+    RaiiSurfaceWrapper(const vk::raii::Instance& instance, RaiiWindowWrapper& windowWrapper)  
+        : RaiiSurfaceWrapper(instance, windowWrapper.GetSdlPointer())
+    {
     }
     ~RaiiSurfaceWrapper()
     {

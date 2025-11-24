@@ -35,12 +35,29 @@ class SwapchainWrapper
   private:
 };
 
+/// A wrapper that holds information about a physical device candidate for comparing and choosing the best one.
+class PhysicalDeviceCandidate
+{
+  public:
+    static constexpr std::uint32_t GetTypeScore(vk::PhysicalDeviceType type) noexcept;
+
+    PhysicalDeviceCandidate() noexcept = default;
+    PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physicalDevice);
+
+    std::weak_ordering operator<=>(const PhysicalDeviceCandidate& other) const noexcept;
+
+    bool IsUsable() const noexcept;
+
+    vk::PhysicalDevice physicalDevice{nullptr};
+    vk::PhysicalDeviceProperties properties{};
+};
+
 /// Members that are invariant during all of rendering (except swapchain recreation).
 class VulkanInvariants
 {
   public:
     VulkanInvariants() noexcept = default;
-    VulkanInvariants(SDL_Window& window);
+    VulkanInvariants(vulkan::util::RaiiWindowWrapper& windowWrapper);
 
     vk::raii::Context context{};
     vk::raii::Instance instance{nullptr};
@@ -55,7 +72,6 @@ class VulkanInvariants
 
   private:
     vk::raii::Instance CreateInstance();
-    vulkan::util::RaiiSurfaceWrapper CreateSurface();
     vk::raii::PhysicalDevice ChoosePhysicalDevice();
 
     vk::raii::Device CreateDevice();
