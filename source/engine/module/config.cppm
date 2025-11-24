@@ -50,13 +50,13 @@ export using ConfigBool = Variable<bool>;
 export class Manager
 {
   public:
-    void RegisterVariable(const std::string& name, auto* variable)
+    void RegisterVariable(const std::string_view& name, auto* variable)
     {
         ASSUMERT(!variables.contains(name));
         variables.insert({name, variable});
     }
 
-    void UnregisterVariable(const std::string& name)
+    void UnregisterVariable(const std::string_view& name)
     {
         ASSUMERT(variables.contains(name));
         variables.erase(name);
@@ -65,7 +65,7 @@ export class Manager
     auto& GetVariables() { return variables; }
 
   private:
-    std::map<std::string, std::variant<ConfigString*, ConfigI32*, ConfigU32*, ConfigFloat*, ConfigBool*>> variables;
+    std::map<std::string_view, std::variant<ConfigString*, ConfigI32*, ConfigU32*, ConfigFloat*, ConfigBool*>> variables;
 };
 
 template <typename T>

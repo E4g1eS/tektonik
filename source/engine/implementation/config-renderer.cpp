@@ -381,16 +381,19 @@ int ImGuiStringResizeCallback(ImGuiInputTextCallbackData* callbackData)
 
     ASSUMERT(callbackData->UserData != nullptr);
     ConfigString& configString = *static_cast<ConfigString*>(callbackData->UserData);
+    std::string& str = *configString;
 
-    if (callbackData->BufSize <= configString->capacity())
-        return 0;
+    if (callbackData->BufTextLen > str.capacity())
+    {
+        str.reserve(callbackData->BufTextLen);
 
-    configString.GetValue().reserve(callbackData->BufSize);
-    callbackData->Buf = configString->data();
+        static ConfigBool logResizeCalls("LogStringResizeCallbacks", false);
+        if (*logResizeCalls)
+            Singleton<Logger>::Get().Log(std::format("Resized ConfigString '{}' to capacity {}.", configString.GetName(), str.capacity()));
+    }
 
-    static ConfigBool logResizeCalls("LogStringResizeCallbacks", false);
-    if (*logResizeCalls)
-        Singleton<Logger>::Get().Log(std::format("Resized ConfigString '{}' to size {}.", configString.GetName(), callbackData->BufSize));
+    str = str.data();
+    callbackData->Buf = str.data();
 
     return 0;
 }
@@ -400,7 +403,7 @@ void Renderer::AddVariable(ConfigString& configString)
     ImGui::InputText(
         configString.GetName().c_str(),
         configString->data(),
-        configString->capacity(),
+        configString->capacity() + 1,
         ImGuiInputTextFlags_CallbackResize,
         ImGuiStringResizeCallback,
         static_cast<void*>(&configString));
