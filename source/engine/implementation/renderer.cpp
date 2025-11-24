@@ -118,12 +118,68 @@ QueueFamiliesInfo::QueueFamiliesInfo(
         if (!transferFamily && queueFamily.queueFlags & vk::QueueFlagBits::eTransfer)
         {
             transferFamily = index;
-            ++reservedQueueCount;
         }
     }
 
+    if (IsValid())
+        return;
+
+    Clear();
+
     // Else we need to overlap some queues
-    // TODO
+    //
+    // There is a guarantee that every Vulkan-capable physical device must have at least one queue family
+    // that supports both VK_QUEUE_GRAPHICS_BIT and VK_QUEUE_COMPUTE_BIT.
+    //
+    // There is also a guarantee that any queue family
+    // with VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT implicitly supports transfer operations.
+    //
+    // This still says nothing about present queue, so try to have it separate.
+
+
+    for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
+    {
+        uint32_t reservedQueueCount = 0;
+
+        if (!presentFamily && physicalDevice.getSurfaceSupportKHR(index, *surfaceWrapper))
+        {
+            presentFamily = index;
+            ++reservedQueueCount;
+        }
+
+        if (reservedQueueCount >= queueFamily.queueCount)
+            continue;
+
+        constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
+        if (!graphicsFamily && queueFamily.queueFlags & kTogetherFlags)
+        {
+            graphicsFamily = index;
+            computeFamily = index;
+            transferFamily = index;
+            graphicsComputeTransferTogether = true;
+        }
+    }
+
+    if (IsValid())
+        return;
+
+    Clear();
+
+    // Else we need to try to overlap everything into one queue
+
+    for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
+    {
+        constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
+        if (!presentFamily && physicalDevice.getSurfaceSupportKHR(index, *surfaceWrapper) && queueFamily.queueFlags & kTogetherFlags)
+        {
+            presentFamily = index;
+            graphicsFamily = index;
+            computeFamily = index;
+            transferFamily = index;
+            graphicsComputeTransferTogether = true;
+            presentTogether = true;
+        }
+    }
 }
 
 bool QueueFamiliesInfo::IsValid() const
@@ -147,6 +203,14 @@ std::string QueueFamiliesInfo::ToString() const
         kSanitizeOptional(graphicsFamily),
         kSanitizeOptional(computeFamily),
         kSanitizeOptional(transferFamily));
+}
+
+void QueueFamiliesInfo::Clear()
+{
+    presentFamily = std::nullopt;
+    graphicsFamily = std::nullopt;
+    computeFamily = std::nullopt;
+    transferFamily = std::nullopt;
 }
 
 constexpr std::uint32_t PhysicalDeviceCandidate::GetTypeScore(vk::PhysicalDeviceType type) noexcept

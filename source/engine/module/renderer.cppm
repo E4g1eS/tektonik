@@ -48,10 +48,15 @@ class QueueFamiliesInfo
     std::string ToString() const;
 
   private:
+    void Clear();
+
     std::optional<uint32_t> presentFamily = std::nullopt;
     std::optional<uint32_t> graphicsFamily = std::nullopt;
     std::optional<uint32_t> computeFamily = std::nullopt;
     std::optional<uint32_t> transferFamily = std::nullopt;
+
+    bool graphicsComputeTransferTogether = false;
+    bool presentTogether = false;
 };
 
 /// A wrapper that holds information about a physical device candidate for comparing and choosing the best one.
