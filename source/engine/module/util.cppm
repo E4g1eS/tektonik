@@ -25,6 +25,12 @@ export std::ostream& operator<<(std::ostream& os, const tektonik::concepts::Tiab
     return os;
 }
 
+export std::ostream& operator<<(std::ostream& os, const tektonik::concepts::ToStringable auto& toStringable)
+{
+    os << toStringable.ToString();
+    return os;
+}
+
 namespace tektonik::util
 {
 

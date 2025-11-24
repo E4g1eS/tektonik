@@ -57,9 +57,9 @@ vk::raii::PhysicalDevice VulkanInvariants::ChoosePhysicalDevice()
 
     Singleton<Logger>::Get().Log(std::format("Found {} physical devices available for Vulkan.", physicalDevices.size()));
 
-    std::vector<PhysicalDeviceCandidate> candidates = physicalDevices |
-                                                      std::views::transform([this](vk::raii::PhysicalDevice& pd) { return PhysicalDeviceCandidate(pd, surface); }) |
-                                                      std::ranges::to<std::vector<PhysicalDeviceCandidate>>();
+    std::vector<PhysicalDeviceCandidate> candidates =
+        physicalDevices | std::views::transform([this](vk::raii::PhysicalDevice& pd) { return PhysicalDeviceCandidate(pd, surface); }) |
+        std::ranges::to<std::vector<PhysicalDeviceCandidate>>();
 
     std::ranges::sort(candidates, std::greater{});
 
@@ -131,6 +131,24 @@ bool QueueFamiliesInfo::IsValid() const
     return presentFamily.has_value() && graphicsFamily.has_value() && computeFamily.has_value() && transferFamily.has_value();
 }
 
+std::string QueueFamiliesInfo::ToString() const
+{
+    constexpr auto kSanitizeOptional = [](const std::optional<std::uint32_t>& opt) -> std::string
+    {
+        if (opt)
+            return std::format("{}", *opt);
+        else
+            return "-1";
+    };
+
+    return std::format(
+        "QueueFamiliesInfo:[presentFamily: {}, graphicsFamily: {}, computeFamily: {}, transferFamily: {}]",
+        kSanitizeOptional(presentFamily),
+        kSanitizeOptional(graphicsFamily),
+        kSanitizeOptional(computeFamily),
+        kSanitizeOptional(transferFamily));
+}
+
 constexpr std::uint32_t PhysicalDeviceCandidate::GetTypeScore(vk::PhysicalDeviceType type) noexcept
 {
     switch (type)
@@ -148,9 +166,7 @@ constexpr std::uint32_t PhysicalDeviceCandidate::GetTypeScore(vk::PhysicalDevice
     }
 }
 
-PhysicalDeviceCandidate::PhysicalDeviceCandidate(
-    vk::raii::PhysicalDevice& physicalDevice,
-    const vulkan::util::RaiiSurfaceWrapper& surface)
+PhysicalDeviceCandidate::PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physicalDevice, const vulkan::util::RaiiSurfaceWrapper& surface)
     : physicalDevice(physicalDevice), properties(physicalDevice.getProperties())
 {
     static config::ConfigBool printPhysicalDeviceDetails("PrintPhysicalDeviceDetails", true);
@@ -169,7 +185,14 @@ PhysicalDeviceCandidate::PhysicalDeviceCandidate(
 
     for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
         Singleton<Logger>::Get().Log(
-            std::format("    {}. Flags: {}, Surface support: {}, Count: {}", index, vk::to_string(queueFamily.queueFlags), static_cast<bool>(physicalDevice.getSurfaceSupportKHR(index, *surface)), queueFamily.queueCount));
+            std::format(
+                "    {}. Flags: {}, Surface support: {}, Count: {}",
+                index,
+                vk::to_string(queueFamily.queueFlags),
+                static_cast<bool>(physicalDevice.getSurfaceSupportKHR(index, *surface)),
+                queueFamily.queueCount));
+
+    Singleton<Logger>::Get().Log(queueFamiliesInfo.ToString());
 }
 
 bool PhysicalDeviceCandidate::IsUsable() const noexcept

@@ -40,7 +40,7 @@ concept LoadableFromStringView = requires(T obj, const std::string_view& str) {
 };
 
 export template <typename T>
-concept Stringable = requires(T obj) {
+concept ToStringable = requires(T obj) {
     { obj.ToString() } -> std::same_as<std::string>;
 };
 

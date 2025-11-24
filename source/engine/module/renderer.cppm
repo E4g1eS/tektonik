@@ -45,6 +45,7 @@ class QueueFamiliesInfo
         const std::vector<vk::QueueFamilyProperties>& queueFamilies) noexcept;
 
     bool IsValid() const;
+    std::string ToString() const;
 
   private:
     std::optional<uint32_t> presentFamily = std::nullopt;
