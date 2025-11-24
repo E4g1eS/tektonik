@@ -429,6 +429,20 @@ void Renderer::AddVariable(ConfigBool& configBool)
     ImGui::Checkbox(configBool.GetName().c_str(), &*configBool);
 }
 
+void Renderer::AddVariable(ConfigEnum& configEnum)
+{
+    ImGui::Combo(
+        configEnum.GetName().c_str(),
+        &configEnum->GetChosen(),
+        [](void* data, int index)
+        {
+            auto& enumValue = static_cast<ConfigEnum*>(data)->GetValue();
+            return enumValue.GetOptions()[index].c_str();
+        },
+        &configEnum,
+        configEnum->GetOptions().size());
+}
+
 void Renderer::VulkanTick()
 {
     constexpr uint64_t kTimeoutNs = 1'000'000'000ULL;

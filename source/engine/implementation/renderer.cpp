@@ -8,6 +8,7 @@ module renderer;
 import common;
 import singleton;
 import logger;
+import string_enum;
 
 namespace tektonik::renderer
 {
@@ -82,6 +83,9 @@ QueueFamiliesInfo::QueueFamiliesInfo(
     const vulkan::util::RaiiSurfaceWrapper& surfaceWrapper,
     const std::vector<vk::QueueFamilyProperties>& queueFamilies) noexcept
 {
+    static config::ConfigEnum queueFamilySelectionStrategy(
+        "QueueFamilySelectionStrategy", config::ConfigurableEnum({"AllSeparate", "PresentSeparate", "Together"}));
+
     // At first we want to pick different queue for every operation
 
     for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
@@ -135,7 +139,6 @@ QueueFamiliesInfo::QueueFamiliesInfo(
     // with VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT implicitly supports transfer operations.
     //
     // This still says nothing about present queue, so try to have it separate.
-
 
     for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
     {

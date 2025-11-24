@@ -7,6 +7,7 @@ import concepts;
 import util;
 import std;
 import assert;
+import string_enum;
 
 namespace tektonik::config
 {
@@ -15,6 +16,30 @@ class ConfigParseError : public std::runtime_error
 {
   public:
     ConfigParseError(const std::string& message) : std::runtime_error(message) {}
+};
+
+export class ConfigurableEnum
+{
+  public:
+    ConfigurableEnum() noexcept = default;
+    ConfigurableEnum(std::vector<std::string> options, int chosen = 0) : options(std::move(options)), chosen(chosen)
+    {
+        ASSUMERT(!this->options.empty());
+        ASSUMERT(this->chosen >= 0 && static_cast<size_t>(this->chosen) < this->options.size());
+    }
+
+    bool IsChosen(const concepts::StringLike auto& option) const
+    {
+        ASSUMERT(chosen >= 0 && static_cast<size_t>(chosen) < options.size());
+        return options[chosen] == option;
+    }
+
+    auto& GetOptions(this auto&& self) { return self.options; }
+    auto& GetChosen(this auto&& self) { return self.chosen; }
+
+  private:
+    std::vector<std::string> options;
+    int chosen = -1;
 };
 
 template <typename T>
@@ -46,6 +71,7 @@ export using ConfigI32 = Variable<std::int32_t>;
 export using ConfigU32 = Variable<std::uint32_t>;
 export using ConfigFloat = Variable<float>;
 export using ConfigBool = Variable<bool>;
+export using ConfigEnum = Variable<ConfigurableEnum>;
 
 export class Manager
 {
@@ -65,7 +91,7 @@ export class Manager
     auto& GetVariables() { return variables; }
 
   private:
-    std::map<std::string_view, std::variant<ConfigString*, ConfigI32*, ConfigU32*, ConfigFloat*, ConfigBool*>> variables;
+    std::map<std::string_view, std::variant<ConfigString*, ConfigI32*, ConfigU32*, ConfigFloat*, ConfigBool*, ConfigEnum*>> variables;
 };
 
 template <typename T>

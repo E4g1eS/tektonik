@@ -2,7 +2,7 @@ export module string_enum;
 
 import std;
 
-template <size_t Length>
+export template <size_t Length>
 struct FixedString
 {
     template <size_t InputLength>
@@ -26,7 +26,7 @@ struct FixedString
     char str[Length];
 };
 
-template <size_t N>
+export template <size_t N>
 FixedString(const char (&)[N]) -> FixedString<N - 1>;
 
 export template <FixedString... enumValues>
@@ -39,6 +39,19 @@ class StringEnum
     constexpr operator int() const { return option; }
 
     explicit operator std::string() const { return std::string("unimplemented so far"); }
+
+    std::vector<std::string> GetAllOptions() const
+    {
+        std::vector<std::string> options;
+        options.reserve(sizeof...(enumValues));
+        (
+            [&]
+            {
+                options.push_back(std::string(enumValues.str));
+            }(),
+            ...);
+        return options;
+    }
 
   private:
     constexpr static int ToOption(const char* str)

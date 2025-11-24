@@ -78,6 +78,7 @@ export class Renderer
     void AddVariable(ConfigU32& configU32);
     void AddVariable(ConfigFloat& configFloat);
     void AddVariable(ConfigBool& configBool);
+    void AddVariable(ConfigEnum& configEnum);
 
     void VulkanTick();
     void RecreateSwapchain();
