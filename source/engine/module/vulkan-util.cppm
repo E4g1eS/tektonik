@@ -92,7 +92,7 @@ export class RaiiWindowWrapper
     RaiiWindowWrapper(const RaiiWindowWrapper& other) = delete;
     RaiiWindowWrapper& operator=(const RaiiWindowWrapper& other) = delete;
 
-    SDL_Window* GetSdlPointer() { return window; }
+    SDL_Window* operator*() { return window; }
 
   private:
     SDL_Window* window;
@@ -111,10 +111,7 @@ export class RaiiSurfaceWrapper
 
         surface = cSurface;
     }
-    RaiiSurfaceWrapper(const vk::raii::Instance& instance, RaiiWindowWrapper& windowWrapper)  
-        : RaiiSurfaceWrapper(instance, windowWrapper.GetSdlPointer())
-    {
-    }
+    RaiiSurfaceWrapper(const vk::raii::Instance& instance, RaiiWindowWrapper& windowWrapper) : RaiiSurfaceWrapper(instance, *windowWrapper) {}
     ~RaiiSurfaceWrapper()
     {
         if (instance && surface)
@@ -126,7 +123,7 @@ export class RaiiSurfaceWrapper
     RaiiSurfaceWrapper& operator=(const RaiiSurfaceWrapper&) = delete;
     RaiiSurfaceWrapper& operator=(RaiiSurfaceWrapper&& other) noexcept = default;
 
-    vk::SurfaceKHR& operator*() { return surface; }
+    auto& operator*(this auto&& self) { return self.surface; }
 
   private:
     vk::Instance instance{nullptr};

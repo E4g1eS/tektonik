@@ -58,7 +58,7 @@ vk::raii::PhysicalDevice VulkanInvariants::ChoosePhysicalDevice()
     Singleton<Logger>::Get().Log(std::format("Found {} physical devices available for Vulkan.", physicalDevices.size()));
 
     std::vector<PhysicalDeviceCandidate> candidates = physicalDevices |
-                                                      std::views::transform([](vk::raii::PhysicalDevice pd) { return PhysicalDeviceCandidate(pd); }) |
+                                                      std::views::transform([this](vk::raii::PhysicalDevice& pd) { return PhysicalDeviceCandidate(pd, surface); }) |
                                                       std::ranges::to<std::vector<PhysicalDeviceCandidate>>();
 
     std::ranges::sort(candidates, std::greater{});
@@ -75,6 +75,60 @@ vk::raii::PhysicalDevice VulkanInvariants::ChoosePhysicalDevice()
 vk::raii::Device VulkanInvariants::CreateDevice()
 {
     return vk::raii::Device(nullptr);
+}
+
+QueueFamiliesInfo::QueueFamiliesInfo(
+    const vk::raii::PhysicalDevice& physicalDevice,
+    const vulkan::util::RaiiSurfaceWrapper& surfaceWrapper,
+    const std::vector<vk::QueueFamilyProperties>& queueFamilies) noexcept
+{
+    // At first we want to pick different queue for every operation
+
+    for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
+    {
+        uint32_t reservedQueueCount = 0;
+
+        if (!presentFamily && physicalDevice.getSurfaceSupportKHR(index, *surfaceWrapper))
+        {
+            presentFamily = index;
+            ++reservedQueueCount;
+        }
+
+        if (reservedQueueCount >= queueFamily.queueCount)
+            continue;
+
+        if (!graphicsFamily && queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+        {
+            graphicsFamily = index;
+            ++reservedQueueCount;
+        }
+
+        if (reservedQueueCount >= queueFamily.queueCount)
+            continue;
+
+        if (!computeFamily && queueFamily.queueFlags & vk::QueueFlagBits::eCompute)
+        {
+            computeFamily = index;
+            ++reservedQueueCount;
+        }
+
+        if (reservedQueueCount >= queueFamily.queueCount)
+            continue;
+
+        if (!transferFamily && queueFamily.queueFlags & vk::QueueFlagBits::eTransfer)
+        {
+            transferFamily = index;
+            ++reservedQueueCount;
+        }
+    }
+
+    // Else we need to overlap some queues
+    // TODO
+}
+
+bool QueueFamiliesInfo::IsValid() const
+{
+    return presentFamily.has_value() && graphicsFamily.has_value() && computeFamily.has_value() && transferFamily.has_value();
 }
 
 constexpr std::uint32_t PhysicalDeviceCandidate::GetTypeScore(vk::PhysicalDeviceType type) noexcept
@@ -94,23 +148,36 @@ constexpr std::uint32_t PhysicalDeviceCandidate::GetTypeScore(vk::PhysicalDevice
     }
 }
 
-PhysicalDeviceCandidate::PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physicalDevice)
+PhysicalDeviceCandidate::PhysicalDeviceCandidate(
+    vk::raii::PhysicalDevice& physicalDevice,
+    const vulkan::util::RaiiSurfaceWrapper& surface)
     : physicalDevice(physicalDevice), properties(physicalDevice.getProperties())
 {
     static config::ConfigBool printPhysicalDeviceDetails("PrintPhysicalDeviceDetails", true);
 
-    if (*printPhysicalDeviceDetails)
-        Singleton<Logger>::Get().Log(std::format("Found physical device: '{}'", static_cast<std::string_view>(properties.deviceName)));
+    std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
+    queueFamiliesInfo = QueueFamiliesInfo(physicalDevice, surface, queueFamilies);
+
+    if (!*printPhysicalDeviceDetails)
+        return;
+
+    Singleton<Logger>::Get().Log(
+        std::format(
+            "Found physical device: '{}', Device type: {}, Queue families:",
+            static_cast<std::string_view>(properties.deviceName),
+            vk::to_string(properties.deviceType)));
+
+    for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
+        Singleton<Logger>::Get().Log(
+            std::format("    {}. Flags: {}, Surface support: {}, Count: {}", index, vk::to_string(queueFamily.queueFlags), static_cast<bool>(physicalDevice.getSurfaceSupportKHR(index, *surface)), queueFamily.queueCount));
 }
 
 bool PhysicalDeviceCandidate::IsUsable() const noexcept
 {
-    // TODO implement some "this is necessary" checks.
-
-    return true;
+    return queueFamiliesInfo.IsValid();
 }
 
-std::weak_ordering PhysicalDeviceCandidate::operator <=> (const PhysicalDeviceCandidate& other) const noexcept
+std::weak_ordering PhysicalDeviceCandidate::operator<=>(const PhysicalDeviceCandidate& other) const noexcept
 {
     // TODO implement a better comparison.
     if (auto usable = IsUsable() <=> other.IsUsable(); usable != std::strong_ordering::equal)

@@ -35,6 +35,24 @@ class SwapchainWrapper
   private:
 };
 
+class QueueFamiliesInfo
+{
+  public:
+    QueueFamiliesInfo() noexcept = default;
+    QueueFamiliesInfo(
+        const vk::raii::PhysicalDevice& physicalDevice,
+        const vulkan::util::RaiiSurfaceWrapper& surfaceWrapper,
+        const std::vector<vk::QueueFamilyProperties>& queueFamilies) noexcept;
+
+    bool IsValid() const;
+
+  private:
+    std::optional<uint32_t> presentFamily = std::nullopt;
+    std::optional<uint32_t> graphicsFamily = std::nullopt;
+    std::optional<uint32_t> computeFamily = std::nullopt;
+    std::optional<uint32_t> transferFamily = std::nullopt;
+};
+
 /// A wrapper that holds information about a physical device candidate for comparing and choosing the best one.
 class PhysicalDeviceCandidate
 {
@@ -42,7 +60,7 @@ class PhysicalDeviceCandidate
     static constexpr std::uint32_t GetTypeScore(vk::PhysicalDeviceType type) noexcept;
 
     PhysicalDeviceCandidate() noexcept = default;
-    PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physicalDevice);
+    PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physicalDevice, const vulkan::util::RaiiSurfaceWrapper& surface);
 
     std::weak_ordering operator<=>(const PhysicalDeviceCandidate& other) const noexcept;
 
@@ -50,6 +68,7 @@ class PhysicalDeviceCandidate
 
     vk::PhysicalDevice physicalDevice{nullptr};
     vk::PhysicalDeviceProperties properties{};
+    QueueFamiliesInfo queueFamiliesInfo{};
 };
 
 /// Members that are invariant during all of rendering (except swapchain recreation).
@@ -73,7 +92,6 @@ class VulkanInvariants
   private:
     vk::raii::Instance CreateInstance();
     vk::raii::PhysicalDevice ChoosePhysicalDevice();
-
     vk::raii::Device CreateDevice();
 };
 
