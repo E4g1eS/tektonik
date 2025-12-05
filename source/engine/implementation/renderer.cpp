@@ -94,7 +94,7 @@ vk::raii::Device VulkanInvariants::CreateDevice()
         .ppEnabledExtensionNames = deviceExtensions.data(),
     };
 
-    return vk::raii::Device(nullptr);
+    return physicalDevice.createDevice(deviceCreateInfo);
 }
 
 QueuesInfo::QueuesInfo(
@@ -222,6 +222,7 @@ std::vector<vk::DeviceQueueCreateInfo> QueuesInfo::GetDeviceQueueCreateInfos() c
     std::vector<vk::DeviceQueueCreateInfo> infos{};
 
     // All queues have the same priority for now.
+    // We also know that queue count will be 4 at most.
     static std::array<float, 4> priorities{1.0f, 1.0f, 1.0f, 1.0f};
 
     for (const auto& [familyIndex, queueTypes] : families)
