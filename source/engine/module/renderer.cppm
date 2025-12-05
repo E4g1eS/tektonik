@@ -103,7 +103,7 @@ class PhysicalDeviceCandidate
 
     vk::PhysicalDevice physicalDevice{nullptr};
     vk::PhysicalDeviceProperties properties{};
-    QueuesInfo queueFamiliesInfo{};
+    QueuesInfo queuesInfo{};
 };
 
 /// Members that are invariant during all of rendering (except swapchain recreation).
@@ -119,9 +119,21 @@ class VulkanInvariants
     vk::raii::Instance instance{nullptr};
     vulkan::util::RaiiSurfaceWrapper surface{};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
-    QueuesInfo queueFamiliesInfo{};
+    QueuesInfo queuesInfo{};
     vk::raii::Device device{nullptr};
-    vk::raii::Queue queue{nullptr};
+
+    // Different types of queues
+    struct
+    {
+        vk::raii::Queue present{nullptr};
+        vk::raii::Queue graphics{nullptr};
+        vk::raii::Queue compute{nullptr};
+        vk::raii::Queue transfer{nullptr};
+
+        bool graphicsComputeTransferTogether = false;
+        bool allTogether = false;
+    } queues{};
+
     vk::raii::RenderPass renderPass{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
 
@@ -131,6 +143,7 @@ class VulkanInvariants
     vk::raii::Instance CreateInstance();
     vk::raii::PhysicalDevice ChoosePhysicalDevice();
     vk::raii::Device CreateDevice();
+    void RetrieveQueues();
 };
 
 export class Renderer

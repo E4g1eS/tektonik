@@ -24,7 +24,7 @@ VulkanInvariants::VulkanInvariants(vulkan::util::RaiiWindowWrapper& windowWrappe
     : instance(CreateInstance()),
       surface(instance, windowWrapper),
       physicalDevice(ChoosePhysicalDevice()),
-      queueFamiliesInfo(physicalDevice, surface, physicalDevice.getQueueFamilyProperties()),
+      queuesInfo(physicalDevice, surface, physicalDevice.getQueueFamilyProperties()),
       device(CreateDevice())
 {
 }
@@ -81,9 +81,9 @@ vk::raii::PhysicalDevice VulkanInvariants::ChoosePhysicalDevice()
 
 vk::raii::Device VulkanInvariants::CreateDevice()
 {
-    ASSUMERT(queueFamiliesInfo.IsValid());
+    ASSUMERT(queuesInfo.IsValid());
 
-    auto deviceQueueCreateInfos = queueFamiliesInfo.GetDeviceQueueCreateInfos();
+    auto deviceQueueCreateInfos = queuesInfo.GetDeviceQueueCreateInfos();
 
     const std::vector<const char*> deviceExtensions = {"VK_KHR_swapchain"};
 
@@ -95,6 +95,10 @@ vk::raii::Device VulkanInvariants::CreateDevice()
     };
 
     return physicalDevice.createDevice(deviceCreateInfo);
+}
+
+void VulkanInvariants::RetrieveQueues()
+{
 }
 
 QueuesInfo::QueuesInfo(
@@ -208,6 +212,7 @@ std::string QueuesInfo::ToString() const
     for (const auto& [familyIndex, queueTypes] : families)
     {
         ss << std::format("Family index: {}, queue count: {}, queue types: [", familyIndex, queueTypes.size());
+        // TODO C++26: enum reflection
         for (QueueType qt : queueTypes)
             ss << static_cast<int>(std::to_underlying(qt)) << ", ";
         ss << "], ";
@@ -273,8 +278,8 @@ PhysicalDeviceCandidate::PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physi
 {
     static config::ConfigBool printPhysicalDeviceDetails("PrintPhysicalDeviceDetails", true);
 
-    std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
-    queueFamiliesInfo = QueuesInfo(physicalDevice, surface, queueFamilies);
+    auto queueFamiliesProperties = physicalDevice.getQueueFamilyProperties();
+    queuesInfo = QueuesInfo(physicalDevice, surface, queueFamiliesProperties);
 
     if (!*printPhysicalDeviceDetails)
         return;
@@ -285,7 +290,7 @@ PhysicalDeviceCandidate::PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physi
             static_cast<std::string_view>(properties.deviceName),
             vk::to_string(properties.deviceType)));
 
-    for (const auto& [index, queueFamily] : std::views::enumerate(queueFamilies))
+    for (const auto& [index, queueFamily] : std::views::enumerate(queueFamiliesProperties))
         Singleton<Logger>::Get().Log(
             std::format(
                 "    {}. Flags: {}, Surface support: {}, Count: {}",
@@ -294,12 +299,12 @@ PhysicalDeviceCandidate::PhysicalDeviceCandidate(vk::raii::PhysicalDevice& physi
                 static_cast<bool>(physicalDevice.getSurfaceSupportKHR(index, *surface)),
                 queueFamily.queueCount));
 
-    Singleton<Logger>::Get().Log(queueFamiliesInfo.ToString());
+    Singleton<Logger>::Get().Log(queuesInfo.ToString());
 }
 
 bool PhysicalDeviceCandidate::IsUsable() const noexcept
 {
-    return queueFamiliesInfo.IsValid();
+    return queuesInfo.IsValid();
 }
 
 std::weak_ordering PhysicalDeviceCandidate::operator<=>(const PhysicalDeviceCandidate& other) const noexcept
