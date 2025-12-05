@@ -2,6 +2,7 @@ module;
 // Needed for VK_MAKE_VERSION macros
 #include <vulkan/vulkan.h>
 
+#include "common-defines.hpp"
 #include "sdl-wrapper.hpp"
 module renderer;
 
@@ -9,6 +10,7 @@ import common;
 import singleton;
 import logger;
 import string_enum;
+import assert;
 
 namespace tektonik::renderer
 {
@@ -19,7 +21,11 @@ Renderer::Renderer()
 }
 
 VulkanInvariants::VulkanInvariants(vulkan::util::RaiiWindowWrapper& windowWrapper)
-    : instance(CreateInstance()), surface(instance, windowWrapper), physicalDevice(ChoosePhysicalDevice())
+    : instance(CreateInstance()),
+      surface(instance, windowWrapper),
+      physicalDevice(ChoosePhysicalDevice()),
+      queueFamiliesInfo(physicalDevice, surface, physicalDevice.getQueueFamilyProperties()),
+      device(CreateDevice())
 {
 }
 
@@ -75,6 +81,19 @@ vk::raii::PhysicalDevice VulkanInvariants::ChoosePhysicalDevice()
 
 vk::raii::Device VulkanInvariants::CreateDevice()
 {
+    ASSUMERT(queueFamiliesInfo.IsValid());
+
+    auto deviceQueueCreateInfos = queueFamiliesInfo.GetDeviceQueueCreateInfos();
+
+    const std::vector<const char*> deviceExtensions = {"VK_KHR_swapchain"};
+
+    vk::DeviceCreateInfo deviceCreateInfo{
+        .queueCreateInfoCount = static_cast<uint32_t>(deviceQueueCreateInfos.size()),
+        .pQueueCreateInfos = deviceQueueCreateInfos.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+        .ppEnabledExtensionNames = deviceExtensions.data(),
+    };
+
     return vk::raii::Device(nullptr);
 }
 
@@ -206,6 +225,38 @@ std::string QueueFamiliesInfo::ToString() const
         kSanitizeOptional(graphicsFamily),
         kSanitizeOptional(computeFamily),
         kSanitizeOptional(transferFamily));
+}
+
+std::vector<vk::DeviceQueueCreateInfo> QueueFamiliesInfo::GetDeviceQueueCreateInfos() const
+{
+    std::vector<vk::DeviceQueueCreateInfo> infos{};
+
+    static float queuePriority = 1.0f;
+
+    infos.emplace_back(
+        vk::DeviceQueueCreateInfo{
+            .queueFamilyIndex = *graphicsFamily,
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority,
+        });
+
+    infos.emplace_back(
+        vk::DeviceQueueCreateInfo{
+            .queueFamilyIndex = *computeFamily,
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority,
+        });
+
+    infos.emplace_back(
+        vk::DeviceQueueCreateInfo{
+            .queueFamilyIndex = *transferFamily,
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority,
+        });
+
+
+
+    return std::vector<vk::DeviceQueueCreateInfo>();
 }
 
 void QueueFamiliesInfo::Clear()

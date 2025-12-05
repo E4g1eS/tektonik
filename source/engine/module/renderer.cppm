@@ -46,14 +46,27 @@ class QueueFamiliesInfo
 
     bool IsValid() const;
     std::string ToString() const;
+    std::vector<vk::DeviceQueueCreateInfo> GetDeviceQueueCreateInfos() const;
 
   private:
+    struct QueueInfo
+    {
+        uint32_t familyIndex;
+        uint32_t queueIndex;
+        float priority = 1.0f;
+    };
+
     void Clear();
 
     std::optional<uint32_t> presentFamily = std::nullopt;
     std::optional<uint32_t> graphicsFamily = std::nullopt;
     std::optional<uint32_t> computeFamily = std::nullopt;
     std::optional<uint32_t> transferFamily = std::nullopt;
+
+    std::optional<uint32_t> presentQueueIndex = std::nullopt;
+    std::optional<uint32_t> graphicsQueueIndex = std::nullopt;
+    std::optional<uint32_t> computeQueueIndex = std::nullopt;
+    std::optional<uint32_t> transferQueueIndex = std::nullopt;
 
     bool graphicsComputeTransferTogether = false;
     bool presentTogether = false;
@@ -84,18 +97,21 @@ class VulkanInvariants
     VulkanInvariants() noexcept = default;
     VulkanInvariants(vulkan::util::RaiiWindowWrapper& windowWrapper);
 
+    // Members are in order of initialization.
+
     vk::raii::Context context{};
     vk::raii::Instance instance{nullptr};
     vulkan::util::RaiiSurfaceWrapper surface{};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
-
-    uint32_t queueFamily{};
+    QueueFamiliesInfo queueFamiliesInfo{};
     vk::raii::Device device{nullptr};
     vk::raii::Queue queue{nullptr};
     vk::raii::RenderPass renderPass{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
 
   private:
+    // Initialization
+
     vk::raii::Instance CreateInstance();
     vk::raii::PhysicalDevice ChoosePhysicalDevice();
     vk::raii::Device CreateDevice();
@@ -112,7 +128,7 @@ export class Renderer
     vulkan::util::RaiiWindowWrapper window{};
     VulkanInvariants vulkanInvariants{};
     /// Must be recreated on window resize.
-    SwapchainWrapper swapchainWrapper;
+    SwapchainWrapper swapchainWrapper{};
 };
 
 }  // namespace tektonik::renderer
