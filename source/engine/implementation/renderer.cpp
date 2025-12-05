@@ -25,7 +25,8 @@ VulkanInvariants::VulkanInvariants(vulkan::util::RaiiWindowWrapper& windowWrappe
       surface(instance, windowWrapper),
       physicalDevice(ChoosePhysicalDevice()),
       queuesInfo(physicalDevice, surface, physicalDevice.getQueueFamilyProperties()),
-      device(CreateDevice())
+      device(CreateDevice()),
+      queues(RetrieveQueues())
 {
 }
 
@@ -97,8 +98,23 @@ vk::raii::Device VulkanInvariants::CreateDevice()
     return physicalDevice.createDevice(deviceCreateInfo);
 }
 
-void VulkanInvariants::RetrieveQueues()
+VulkanInvariants::Queues VulkanInvariants::RetrieveQueues()
 {
+    auto retrieveQueue = [this](QueueType qt)
+    {
+        QueuesInfo::QueueInfo info = queuesInfo.GetQueueInfo(QueueType::Present);
+        return device.getQueue(info.familyIndex, info.queueIndex);
+    };
+
+    return Queues{
+        .present = retrieveQueue(QueueType::Present),
+        .graphics = retrieveQueue(QueueType::Graphics),
+        .compute = retrieveQueue(QueueType::Compute),
+        .transfer = retrieveQueue(QueueType::Transfer),
+        // Cache this
+        .graphicsComputeTransferTogether = queuesInfo.AreGraphicsComputeTransferTogether(),
+        .allTogether = queuesInfo.AreAllTogether(),
+    };
 }
 
 QueuesInfo::QueuesInfo(
@@ -106,12 +122,15 @@ QueuesInfo::QueuesInfo(
     const vulkan::util::RaiiSurfaceWrapper& surfaceWrapper,
     const std::vector<vk::QueueFamilyProperties>& familiesProperties) noexcept
 {
+    /* This is how config enum can work
+    
     static config::ConfigEnum queueFamilySelectionStrategy(
         "QueueFamilySelectionStrategy", config::ConfigurableEnum({"AllSeparate", "PresentSeparate", "Together"}));
+    */
 
     // At first we want to pick different queue for every operation
 
-    auto kIsQueueFamilyFull = [this](std::uint32_t familyIndex, const vk::QueueFamilyProperties& familyProperties)
+    auto isQueueFamilyFull = [this](std::uint32_t familyIndex, const vk::QueueFamilyProperties& familyProperties)
     { return families.contains(familyIndex) && families.at(familyIndex).size() >= familyProperties.queueCount; };
 
     for (const auto& [familyIndex64, familyProperties] : std::views::enumerate(familiesProperties))
@@ -121,19 +140,19 @@ QueuesInfo::QueuesInfo(
         if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
             families[familyIndex].push_back(QueueType::Present);
 
-        if (kIsQueueFamilyFull(familyIndex, familyProperties))
+        if (isQueueFamilyFull(familyIndex, familyProperties))
             continue;
 
         if (!Has(QueueType::Graphics) && familyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
             families[familyIndex].push_back(QueueType::Graphics);
 
-        if (kIsQueueFamilyFull(familyIndex, familyProperties))
+        if (isQueueFamilyFull(familyIndex, familyProperties))
             continue;
 
         if (!Has(QueueType::Compute) && familyProperties.queueFlags & vk::QueueFlagBits::eCompute)
             families[familyIndex].push_back(QueueType::Compute);
 
-        if (kIsQueueFamilyFull(familyIndex, familyProperties))
+        if (isQueueFamilyFull(familyIndex, familyProperties))
             continue;
 
         if (!Has(QueueType::Transfer) && familyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
@@ -161,7 +180,7 @@ QueuesInfo::QueuesInfo(
         if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
             families[familyIndex].push_back(QueueType::Present);
 
-        if (kIsQueueFamilyFull(familyIndex, queueFamily))
+        if (isQueueFamilyFull(familyIndex, queueFamily))
             continue;
 
         constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;

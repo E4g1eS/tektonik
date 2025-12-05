@@ -123,7 +123,7 @@ class VulkanInvariants
     vk::raii::Device device{nullptr};
 
     // Different types of queues
-    struct
+    struct Queues
     {
         vk::raii::Queue present{nullptr};
         vk::raii::Queue graphics{nullptr};
@@ -134,7 +134,6 @@ class VulkanInvariants
         bool allTogether = false;
     } queues{};
 
-    vk::raii::RenderPass renderPass{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
 
   private:
@@ -143,7 +142,7 @@ class VulkanInvariants
     vk::raii::Instance CreateInstance();
     vk::raii::PhysicalDevice ChoosePhysicalDevice();
     vk::raii::Device CreateDevice();
-    void RetrieveQueues();
+    Queues RetrieveQueues();
 };
 
 export class Renderer
