@@ -100,50 +100,40 @@ vk::raii::Device VulkanInvariants::CreateDevice()
 QueuesInfo::QueuesInfo(
     const vk::raii::PhysicalDevice& physicalDevice,
     const vulkan::util::RaiiSurfaceWrapper& surfaceWrapper,
-    const std::vector<vk::QueueFamilyProperties>& queueFamilies) noexcept
+    const std::vector<vk::QueueFamilyProperties>& familiesProperties) noexcept
 {
     static config::ConfigEnum queueFamilySelectionStrategy(
         "QueueFamilySelectionStrategy", config::ConfigurableEnum({"AllSeparate", "PresentSeparate", "Together"}));
 
     // At first we want to pick different queue for every operation
 
-    for (const auto& [queueFamilyIndex64, queueFamily] : std::views::enumerate(queueFamilies))
+    auto kIsQueueFamilyFull = [this](std::uint32_t familyIndex, const vk::QueueFamilyProperties& familyProperties)
+    { return families.contains(familyIndex) && families.at(familyIndex).size() >= familyProperties.queueCount; };
+
+    for (const auto& [familyIndex64, familyProperties] : std::views::enumerate(familiesProperties))
     {
-        std::uint32_t queueFamilyIndex = static_cast<std::uint32_t>(queueFamilyIndex64);
-        uint32_t queueIndex = 0;
+        std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
 
-        if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, *surfaceWrapper))
-        {
-            GetQueueInfoIndex(QueueType::Present) = static_cast<std::uint8_t>(data.size());
-            data.emplace_back(QueueInfo{.familyIndex = queueFamilyIndex, .queueIndex = queueIndex++});
-        }
+        if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
+            families[familyIndex].push_back(QueueType::Present);
 
-        if (queueIndex >= queueFamily.queueCount)
+        if (kIsQueueFamilyFull(familyIndex, familyProperties))
             continue;
 
-        if (!Has(QueueType::Graphics) && queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
-        {
-            GetQueueInfoIndex(QueueType::Graphics) = static_cast<std::uint8_t>(data.size());
-            data.emplace_back(QueueInfo{.familyIndex = queueFamilyIndex, .queueIndex = queueIndex++});
-        }
+        if (!Has(QueueType::Graphics) && familyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
+            families[familyIndex].push_back(QueueType::Graphics);
 
-        if (queueIndex >= queueFamily.queueCount)
+        if (kIsQueueFamilyFull(familyIndex, familyProperties))
             continue;
 
-        if (!Has(QueueType::Compute) && queueFamily.queueFlags & vk::QueueFlagBits::eCompute)
-        {
-            GetQueueInfoIndex(QueueType::Compute) = static_cast<std::uint8_t>(data.size());
-            data.emplace_back(QueueInfo{.familyIndex = queueFamilyIndex, .queueIndex = queueIndex++});
-        }
+        if (!Has(QueueType::Compute) && familyProperties.queueFlags & vk::QueueFlagBits::eCompute)
+            families[familyIndex].push_back(QueueType::Compute);
 
-        if (queueIndex >= queueFamily.queueCount)
+        if (kIsQueueFamilyFull(familyIndex, familyProperties))
             continue;
 
-        if (!Has(QueueType::Transfer) && queueFamily.queueFlags & vk::QueueFlagBits::eTransfer)
-        {
-            GetQueueInfoIndex(QueueType::Transfer) = static_cast<std::uint8_t>(data.size());
-            data.emplace_back(QueueInfo{.familyIndex = queueFamilyIndex, .queueIndex = queueIndex++});
-        }
+        if (!Has(QueueType::Transfer) && familyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
+            families[familyIndex].push_back(QueueType::Transfer);
     }
 
     if (IsValid())
@@ -160,30 +150,19 @@ QueuesInfo::QueuesInfo(
     // with VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT implicitly supports transfer operations.
     //
     // This still says nothing about present queue, so try to have it separate.
-
-    for (const auto& [queueFamilyIndex64, queueFamily] : std::views::enumerate(queueFamilies))
+    for (const auto& [familyIndex64, queueFamily] : std::views::enumerate(familiesProperties))
     {
-        std::uint32_t queueFamilyIndex = static_cast<std::uint32_t>(queueFamilyIndex64);
-        uint32_t queueIndex = 0;
+        std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
 
-        if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, *surfaceWrapper))
-        {
-            GetQueueInfoIndex(QueueType::Present) = static_cast<std::uint8_t>(data.size());
-            data.emplace_back(QueueInfo{.familyIndex = queueFamilyIndex, .queueIndex = queueIndex++});
-        }
+        if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
+            families[familyIndex].push_back(QueueType::Present);
 
-        if (queueIndex >= queueFamily.queueCount)
+        if (kIsQueueFamilyFull(familyIndex, queueFamily))
             continue;
 
         constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
-        if (!Has(QueueType::Graphics) && queueFamily.queueFlags & kTogetherFlags)
-        {
-            std::uint8_t queueInfoIndex = static_cast<std::uint8_t>(data.size());
-            GetQueueInfoIndex(QueueType::Graphics) = queueInfoIndex;
-            GetQueueInfoIndex(QueueType::Compute) = queueInfoIndex;
-            GetQueueInfoIndex(QueueType::Transfer) = queueInfoIndex;
-            data.emplace_back(QueueInfo{.familyIndex = queueFamilyIndex, .queueIndex = queueIndex++});
-        }
+        if (!Has(QueueType::GraphicsComputeTransfer) && queueFamily.queueFlags & kTogetherFlags)
+            families[familyIndex].push_back(QueueType::GraphicsComputeTransfer);
     }
 
     if (IsValid())
@@ -192,26 +171,31 @@ QueuesInfo::QueuesInfo(
     Clear();
 
     // Else we need to try to overlap everything into one queue
-
-    for (const auto& [queueFamilyIndex64, queueFamily] : std::views::enumerate(queueFamilies))
+    for (const auto& [familyIndex64, queueFamily] : std::views::enumerate(familiesProperties))
     {
-        std::uint32_t queueFamilyIndex = static_cast<std::uint32_t>(queueFamilyIndex64);
+        std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
         constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
-        if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(queueFamilyIndex, *surfaceWrapper) &&
-            queueFamily.queueFlags & kTogetherFlags)
-        {
-            queueInfoIndexes.fill(static_cast<std::uint8_t>(data.size()));
-            data.emplace_back(QueueInfo{.familyIndex = queueFamilyIndex, .queueIndex = 0});
-        }
+        if (!Has(QueueType::All) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper) && queueFamily.queueFlags & kTogetherFlags)
+            families[familyIndex].push_back(QueueType::All);
     }
 }
 
-std::string QueueInfo::ToString() const
+QueuesInfo::QueueInfo QueuesInfo::GetQueueInfo(const QueueType requestedType) const
 {
-    if (IsEmpty())
-        return "Empty Queue Info";
+    ASSUMERT(Has(requestedType));
 
-    return std::format("Family index: {}, queue index: {}, priority: {}", familyIndex, queueIndex, priority);
+    for (const auto& [familyIndex, queueTypes] : families)
+        for (const auto& [queueIndex, queueType] : std::views::enumerate(queueTypes))
+            if (std::to_underlying(queueType) & std::to_underlying(requestedType))
+                return {familyIndex, static_cast<std::uint32_t>(familyIndex)};
+
+    throw std::logic_error("This must be called only when the queue type is contained");
+    return QueueInfo{};
+}
+
+bool QueuesInfo::IsValid() const noexcept
+{
+    return Has(QueueType::Present) && Has(QueueType::Graphics) && Has(QueueType::Compute) && Has(QueueType::Transfer);
 }
 
 std::string QueuesInfo::ToString() const
@@ -219,51 +203,51 @@ std::string QueuesInfo::ToString() const
     if (!IsValid())
         return "Invalid QueueFamiliesInfo";
 
-    return std::format(
-        "QueueFamiliesInfo:[presentFamily: [{}], graphicsFamily: [{}], computeFamily: [{}], transferFamily: [{}]]",
-        GetQueueInfo(QueueType::Present).ToString(),
-        GetQueueInfo(QueueType::Graphics).ToString(),
-        GetQueueInfo(QueueType::Compute).ToString(),
-        GetQueueInfo(QueueType::Transfer).ToString());
+    std::stringstream ss;
+    ss << "Queues info: [";
+    for (const auto& [familyIndex, queueTypes] : families)
+    {
+        ss << std::format("Family index: {}, queue count: {}, queue types: [", familyIndex, queueTypes.size());
+        for (QueueType qt : queueTypes)
+            ss << static_cast<int>(std::to_underlying(qt)) << ", ";
+        ss << "], ";
+    }
+
+    ss << "]";
+    return ss.str();
 }
 
 std::vector<vk::DeviceQueueCreateInfo> QueuesInfo::GetDeviceQueueCreateInfos() const
 {
     std::vector<vk::DeviceQueueCreateInfo> infos{};
 
-    std::set<std::uint8_t> uniqueQueueInfoIndexes = std::set<std::uint8_t>(queueInfoIndexes.begin(), queueInfoIndexes.end());
-    uniqueQueueInfoIndexes.erase(kInvalidIndex<std::uint8_t>);
+    // All queues have the same priority for now.
+    static std::array<float, 4> priorities{1.0f, 1.0f, 1.0f, 1.0f};
 
-    std::set<std::uint32_t> usedFamilyIndexes{};
-    for (const auto& queueInfoIndex : uniqueQueueInfoIndexes)
-    {
-        const QueueInfo& queueInfo = data[queueInfoIndex];
-        usedFamilyIndexes.insert(queueInfo.familyIndex);
-    }
-
-    for (const auto& queueInfoIndex : uniqueQueueInfoIndexes)
-    {
-        const QueueInfo& queueInfo = data[queueInfoIndex];
-        infos.push_back(
+    for (const auto& [familyIndex, queueTypes] : families)
+        infos.emplace_back(
             vk::DeviceQueueCreateInfo{
-                .queueFamilyIndex = queueInfo.familyIndex,
-                .queueCount = 1,
-                .pQueuePriorities = &priority,
+                .queueFamilyIndex = familyIndex,
+                .queueCount = static_cast<uint32_t>(queueTypes.size()),
+                .pQueuePriorities = priorities.data(),
             });
-    }
 
     return infos;
 }
 
-bool QueuesInfo::AreGraphicsComputeTransferTogether() const noexcept
+void QueuesInfo::Clear() noexcept
 {
-    return GetQueueInfoIndex(QueueType::Graphics) == GetQueueInfoIndex(QueueType::Compute) &&
-           GetQueueInfoIndex(QueueType::Graphics) == GetQueueInfoIndex(QueueType::Transfer);
+    families.clear();
 }
 
-bool QueuesInfo::AreAllTogether() const noexcept
+bool QueuesInfo::Has(const QueueType requestedType) const noexcept
 {
-    return AreGraphicsComputeTransferTogether() && GetQueueInfoIndex(QueueType::Graphics) == GetQueueInfoIndex(QueueType::Present);
+    for (const auto& [familyIndex, queueTypes] : families)
+        for (QueueType qt : queueTypes)
+            if (std::to_underlying(qt) & std::to_underlying(requestedType))
+                return true;
+
+    return false;
 }
 
 constexpr std::uint32_t PhysicalDeviceCandidate::GetTypeScore(vk::PhysicalDeviceType type) noexcept

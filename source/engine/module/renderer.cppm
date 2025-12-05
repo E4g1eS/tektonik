@@ -41,70 +41,51 @@ class SwapchainWrapper
   private:
 };
 
-class QueueInfo
+enum class QueueType : std::uint8_t
 {
-  public:
-    uint32_t familyIndex = kInvalidIndex<std::uint32_t>;
-    uint32_t queueIndex = kInvalidIndex<std::uint32_t>;
-    float priority = 1.0f;
-
-    bool IsEmpty() const noexcept { return familyIndex == kInvalidIndex<std::uint32_t>; }
-    std::string ToString() const;
-
-    std::strong_ordering operator<=>(const QueueInfo& other) const noexcept = default;
+    // Simple types
+    Present = 1 << 0,
+    Graphics = 1 << 1,
+    Compute = 1 << 2,
+    Transfer = 1 << 3,
+    // Composite types
+    GraphicsComputeTransfer = Graphics | Compute | Transfer,
+    All = Present | Graphics | Compute | Transfer,
 };
 
 class QueuesInfo
 {
   public:
-    enum class QueueType : std::uint8_t
+    struct QueueInfo
     {
-        Present,
-        Graphics,
-        Compute,
-        Transfer,
+        std::uint32_t familyIndex = kInvalidIndex<std::uint32_t>;
+        std::uint32_t queueIndex = kInvalidIndex<std::uint32_t>;
     };
 
     QueuesInfo() noexcept = default;
     QueuesInfo(
         const vk::raii::PhysicalDevice& physicalDevice,
         const vulkan::util::RaiiSurfaceWrapper& surfaceWrapper,
-        const std::vector<vk::QueueFamilyProperties>& queueFamilies) noexcept;
+        const std::vector<vk::QueueFamilyProperties>& familiesProperties) noexcept;
 
     /// Must be called only on queue types that are valid.
-    auto& GetQueueInfo(this auto&& self, QueueType type) noexcept
-    {
-        const std::uint8_t index = self.GetQueueInfoIndex(type);
-        ASSUMERT(index != kInvalidIndex<std::uint8_t>);
-        return self.data[index];
-    }
+    QueueInfo GetQueueInfo(QueueType requestedType) const;
 
-    bool Has(QueueType type) const noexcept { return GetQueueInfoIndex(type) != kInvalidIndex<std::uint8_t>; }
-
-    bool IsValid() const noexcept { return !std::ranges::contains(queueInfoIndexes, kInvalidIndex<std::uint8_t>); }
+    bool IsValid() const noexcept;
     std::string ToString() const;
     std::vector<vk::DeviceQueueCreateInfo> GetDeviceQueueCreateInfos() const;
 
     /// Present may still be separate, check AreAllTogether for that.
-    bool AreGraphicsComputeTransferTogether() const noexcept;
-    bool AreAllTogether() const noexcept;
+    bool AreGraphicsComputeTransferTogether() const noexcept { return Has(QueueType::GraphicsComputeTransfer); }
+    bool AreAllTogether() const noexcept { return Has(QueueType::All); }
 
   private:
-    auto& GetQueueInfoIndex(this auto&& self, QueueType type) noexcept { return self.queueInfoIndexes[std::to_underlying(type)]; }
-
-    void Clear() noexcept { queueInfoIndexes.fill(kInvalidIndex<std::uint8_t>); }
-
-    /// Contains indexes into data array for each queue type.
-    /// TODO C++26: make size dependent on number of QueueType enum values by reflection.
-    std::array<std::uint8_t, 4> queueInfoIndexes = {
-        kInvalidIndex<std::uint8_t>,
-        kInvalidIndex<std::uint8_t>,
-        kInvalidIndex<std::uint8_t>,
-        kInvalidIndex<std::uint8_t>,
-    };
-
-    /// TODO C++26: replace the following with inplace_vector (of size of queueInfoIndexes).
-    std::vector<QueueInfo> data{};
+    /// Clears all stored queue family infos.
+    void Clear() noexcept;
+    /// Checks whether this already contains the requested queue type.
+    bool Has(QueueType requestedType) const noexcept;
+    /// Maps queue family indexes to the actually used queues from them.
+    std::unordered_map<std::uint32_t, std::vector<QueueType>> families{};
 };
 
 /// A wrapper that holds information about a physical device candidate for comparing and choosing the best one.
