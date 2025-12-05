@@ -100,70 +100,76 @@ vk::raii::Device VulkanInvariants::CreateDevice()
 
 VulkanInvariants::Queues VulkanInvariants::RetrieveQueues()
 {
-    auto retrieveQueue = [this](QueueType qt)
+    auto retrieveQueue = [this](QueueTypeFlagBits qt)
     {
-        QueuesInfo::QueueInfo info = queuesInfo.GetQueueInfo(QueueType::Present);
+        QueuesInfo::QueueInfo info = queuesInfo.GetQueueInfo(QueueTypeFlagBits::Present);
         return device.getQueue(info.familyIndex, info.queueIndex);
     };
 
     return Queues{
-        .present = retrieveQueue(QueueType::Present),
-        .graphics = retrieveQueue(QueueType::Graphics),
-        .compute = retrieveQueue(QueueType::Compute),
-        .transfer = retrieveQueue(QueueType::Transfer),
+        .present = retrieveQueue(QueueTypeFlagBits::Present),
+        .graphics = retrieveQueue(QueueTypeFlagBits::Graphics),
+        .compute = retrieveQueue(QueueTypeFlagBits::Compute),
+        .transfer = retrieveQueue(QueueTypeFlagBits::Transfer),
         // Cache this
-        .graphicsComputeTransferTogether = queuesInfo.AreGraphicsComputeTransferTogether(),
-        .allTogether = queuesInfo.AreAllTogether(),
+        //.graphicsComputeTransferTogether = queuesInfo.AreGraphicsComputeTransferTogether(),
+        //.allTogether = queuesInfo.AreAllTogether(),
     };
 }
 
 QueuesInfo::QueuesInfo(
     const vk::raii::PhysicalDevice& physicalDevice,
-    const vulkan::util::RaiiSurfaceWrapper& surfaceWrapper,
+    const vulkan::util::RaiiSurfaceWrapper& surface,
     const std::vector<vk::QueueFamilyProperties>& familiesProperties) noexcept
 {
-    /* This is how config enum can work
-    
-    static config::ConfigEnum queueFamilySelectionStrategy(
-        "QueueFamilySelectionStrategy", config::ConfigurableEnum({"AllSeparate", "PresentSeparate", "Together"}));
-    */
+    const auto GetFamilyCapabilities = [&](const std::uint64_t familyIndex, const vk::QueueFamilyProperties& familyProperties) -> QueueType
+    {
+        QueueType result{};
+        if (physicalDevice.getSurfaceSupportKHR(familyIndex, *surface))
+            result |= QueueTypeFlagBits::Present;
+        if (familyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
+            result |= QueueTypeFlagBits::Graphics;
+        if (familyProperties.queueFlags & vk::QueueFlagBits::eCompute)
+            result |= QueueTypeFlagBits::Compute;
+        if (familyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
+            result |= QueueTypeFlagBits::Transfer;
+    };
 
-    // At first we want to pick different queue for every operation
+    // Note that it only really makes sense to divide based on queue families.
 
-    auto isQueueFamilyFull = [this](std::uint32_t familyIndex, const vk::QueueFamilyProperties& familyProperties)
-    { return families.contains(familyIndex) && families.at(familyIndex).size() >= familyProperties.queueCount; };
-
+    // At first we want to pick different queue family for:
+    // - Graphics (+ present)
+    // - Compute
+    // - Transfer
     for (const auto& [familyIndex64, familyProperties] : std::views::enumerate(familiesProperties))
     {
         std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
 
-        if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
-            families[familyIndex].push_back(QueueType::Present);
+        const bool familyHasPresentAndGraphics =
+            physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper) && familyProperties.queueFlags & vk::QueueFlagBits::eGraphics;
+        const bool familyHasCompute = familyProperties.queueFlags & vk::QueueFlagBits::eCompute;
+        const bool familyHasTransfer = familyProperties.queueFlags & vk::QueueFlagBits::eTransfer;
 
-        if (isQueueFamilyFull(familyIndex, familyProperties))
-            continue;
+        if (!Has(QueueTypeFlagBits::Transfer) && familyHasTransfer)
+            ;
+        if (!Has(QueueTypeFlagBits::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
+            families[familyIndex].push_back(QueueTypeFlagBits::Present);
 
-        if (!Has(QueueType::Graphics) && familyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
-            families[familyIndex].push_back(QueueType::Graphics);
+        if (!Has(QueueTypeFlagBits::Graphics) && familyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
+            families[familyIndex].push_back(QueueTypeFlagBits::Graphics);
 
-        if (isQueueFamilyFull(familyIndex, familyProperties))
-            continue;
+        if (!Has(QueueTypeFlagBits::Compute) && familyProperties.queueFlags & vk::QueueFlagBits::eCompute)
+            families[familyIndex].push_back(QueueTypeFlagBits::Compute);
 
-        if (!Has(QueueType::Compute) && familyProperties.queueFlags & vk::QueueFlagBits::eCompute)
-            families[familyIndex].push_back(QueueType::Compute);
-
-        if (isQueueFamilyFull(familyIndex, familyProperties))
-            continue;
-
-        if (!Has(QueueType::Transfer) && familyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
-            families[familyIndex].push_back(QueueType::Transfer);
+        if (!Has(QueueTypeFlagBits::Transfer) && familyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
+            families[familyIndex].push_back(QueueTypeFlagBits::Transfer);
     }
 
     if (IsValid())
         return;
 
     Clear();
-
+    /*
     // Else we need to overlap some queues
     //
     // There is a guarantee that every Vulkan-capable physical device must have at least one queue family
@@ -177,15 +183,15 @@ QueuesInfo::QueuesInfo(
     {
         std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
 
-        if (!Has(QueueType::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
-            families[familyIndex].push_back(QueueType::Present);
+        if (!Has(QueueTypeFlagBits::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
+            families[familyIndex].push_back(QueueTypeFlagBits::Present);
 
         if (isQueueFamilyFull(familyIndex, queueFamily))
             continue;
 
         constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
-        if (!Has(QueueType::GraphicsComputeTransfer) && queueFamily.queueFlags & kTogetherFlags)
-            families[familyIndex].push_back(QueueType::GraphicsComputeTransfer);
+        if (!Has(QueueTypeFlagBits::GraphicsComputeTransfer) && queueFamily.queueFlags & kTogetherFlags)
+            families[familyIndex].push_back(QueueTypeFlagBits::GraphicsComputeTransfer);
     }
 
     if (IsValid())
@@ -198,9 +204,10 @@ QueuesInfo::QueuesInfo(
     {
         std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
         constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
-        if (!Has(QueueType::All) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper) && queueFamily.queueFlags & kTogetherFlags)
-            families[familyIndex].push_back(QueueType::All);
+        if (!Has(QueueTypeFlagBits::All) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper) && queueFamily.queueFlags &
+    kTogetherFlags) families[familyIndex].push_back(QueueTypeFlagBits::All);
     }
+    */
 }
 
 QueuesInfo::QueueInfo QueuesInfo::GetQueueInfo(const QueueType requestedType) const
@@ -209,7 +216,7 @@ QueuesInfo::QueueInfo QueuesInfo::GetQueueInfo(const QueueType requestedType) co
 
     for (const auto& [familyIndex, queueTypes] : families)
         for (const auto& [queueIndex, queueType] : std::views::enumerate(queueTypes))
-            if (std::to_underlying(queueType) & std::to_underlying(requestedType))
+            if (queueType & requestedType)
                 return {familyIndex, static_cast<std::uint32_t>(familyIndex)};
 
     throw std::logic_error("This must be called only when the queue type is contained");
@@ -218,7 +225,7 @@ QueuesInfo::QueueInfo QueuesInfo::GetQueueInfo(const QueueType requestedType) co
 
 bool QueuesInfo::IsValid() const noexcept
 {
-    return Has(QueueType::Present) && Has(QueueType::Graphics) && Has(QueueType::Compute) && Has(QueueType::Transfer);
+    return Has(QueueTypeFlagBits::Present) && Has(QueueTypeFlagBits::Graphics) && Has(QueueTypeFlagBits::Compute) && Has(QueueTypeFlagBits::Transfer);
 }
 
 std::string QueuesInfo::ToString() const
@@ -233,7 +240,7 @@ std::string QueuesInfo::ToString() const
         ss << std::format("Family index: {}, queue count: {}, queue types: [", familyIndex, queueTypes.size());
         // TODO C++26: enum reflection
         for (QueueType qt : queueTypes)
-            ss << static_cast<int>(std::to_underlying(qt)) << ", ";
+            ss << static_cast<int>(static_cast<unsigned char>(qt)) << ", ";
         ss << "], ";
     }
 
@@ -269,7 +276,7 @@ bool QueuesInfo::Has(const QueueType requestedType) const noexcept
 {
     for (const auto& [familyIndex, queueTypes] : families)
         for (QueueType qt : queueTypes)
-            if (std::to_underlying(qt) & std::to_underlying(requestedType))
+            if (qt & requestedType)
                 return true;
 
     return false;

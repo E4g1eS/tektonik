@@ -41,17 +41,15 @@ class SwapchainWrapper
   private:
 };
 
-enum class QueueType : std::uint8_t
+enum class QueueTypeFlagBits : std::uint8_t
 {
-    // Simple types
     Present = 1 << 0,
     Graphics = 1 << 1,
     Compute = 1 << 2,
     Transfer = 1 << 3,
-    // Composite types
-    GraphicsComputeTransfer = Graphics | Compute | Transfer,
-    All = Present | Graphics | Compute | Transfer,
 };
+
+using QueueType = vk::Flags<QueueTypeFlagBits>;
 
 class QueuesInfo
 {
@@ -74,10 +72,6 @@ class QueuesInfo
     bool IsValid() const noexcept;
     std::string ToString() const;
     std::vector<vk::DeviceQueueCreateInfo> GetDeviceQueueCreateInfos() const;
-
-    /// Present may still be separate, check AreAllTogether for that.
-    bool AreGraphicsComputeTransferTogether() const noexcept { return Has(QueueType::GraphicsComputeTransfer); }
-    bool AreAllTogether() const noexcept { return Has(QueueType::All); }
 
   private:
     /// Clears all stored queue family infos.
