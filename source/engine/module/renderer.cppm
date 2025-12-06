@@ -78,8 +78,9 @@ class QueuesInfo
     void Clear() noexcept;
     /// Checks whether this already contains the requested queue type.
     bool Has(QueueType requestedType) const noexcept;
-    /// Maps queue family indexes to the actually used queues from them.
-    std::unordered_map<std::uint32_t, std::vector<QueueType>> families{};
+    /// Maps queue family indexes to the queue type actually used.
+    /// At most one queue per family is used.
+    std::unordered_map<std::uint32_t, QueueType> families{};
 };
 
 /// A wrapper that holds information about a physical device candidate for comparing and choosing the best one.

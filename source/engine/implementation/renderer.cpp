@@ -133,91 +133,101 @@ QueuesInfo::QueuesInfo(
             result |= QueueTypeFlagBits::Compute;
         if (familyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
             result |= QueueTypeFlagBits::Transfer;
+
+        return result;
+    };
+
+    std::vector<QueueType> familiesCapabilities{};
+    familiesCapabilities.reserve(familiesProperties.size());
+    for (const auto& [familyIndex, familyProperties] : std::views::enumerate(familiesProperties))
+        familiesCapabilities.emplace_back(GetFamilyCapabilities(familyIndex, familyProperties));
+
+    // Searches for queue types in the families. Returns count of families that have the searched for type.
+    const auto CountFamilies = [&](const QueueType mustHave, const QueueType mustNotHave = QueueType{}) -> std::size_t
+    {
+        return std::ranges::count_if(
+            familiesCapabilities,
+            [&](const QueueType familyCapabilities) { return (familyCapabilities & mustHave) && (familyCapabilities & ~mustNotHave); });
+    };
+
+    const auto AddFamily = [&](const QueueType mustHave, const QueueType mustNotHave = QueueType{}) -> void
+    {
+        for (const auto& [familyIndex, familyCapabilities] : std::views::enumerate(familiesCapabilities))
+            if ((familyCapabilities & mustHave) && (familyCapabilities & ~mustNotHave))
+            {
+                ASSUMERT(!families.contains(static_cast<std::uint32_t>(familyIndex)));
+                families[static_cast<std::uint32_t>(familyIndex)] = mustHave;
+                return;
+            }
+
+        throw std::logic_error("This must be called only when there is a family that has the requested type.");
     };
 
     // Note that it only really makes sense to divide based on queue families.
+    // Also this function operates under the assumption
+    // that there is at least one family that supports graphics and present at the same time.
 
-    // At first we want to pick different queue family for:
-    // - Graphics (+ present)
-    // - Compute
-    // - Transfer
-    for (const auto& [familyIndex64, familyProperties] : std::views::enumerate(familiesProperties))
+    // Only three outcomes are possible (in order of checking):
+    // 1. There is a dedicated transfer queue. There is a dedicated compute queue. There is a graphics+present queue.
+    // 2. There is a dedicated transfer queue. There is a graphics+compute+present queue.
+    // 3. There is a graphics+compute+transfer+present queue.
+
+    // First look for transfer which does not have graphics or compute
+    const auto transferWithoutGraphicsAndCompute =
+        CountFamilies(QueueTypeFlagBits::Transfer, QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute);
+
+    // If there are no transfer-only queues,
+    // look for transfer queue which does not have graphics (or compute without graphics, because transfer is implied for them).
+    if (transferWithoutGraphicsAndCompute == 0)
     {
-        std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
-
-        const bool familyHasPresentAndGraphics =
-            physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper) && familyProperties.queueFlags & vk::QueueFlagBits::eGraphics;
-        const bool familyHasCompute = familyProperties.queueFlags & vk::QueueFlagBits::eCompute;
-        const bool familyHasTransfer = familyProperties.queueFlags & vk::QueueFlagBits::eTransfer;
-
-        if (!Has(QueueTypeFlagBits::Transfer) && familyHasTransfer)
-            ;
-        if (!Has(QueueTypeFlagBits::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
-            families[familyIndex].push_back(QueueTypeFlagBits::Present);
-
-        if (!Has(QueueTypeFlagBits::Graphics) && familyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
-            families[familyIndex].push_back(QueueTypeFlagBits::Graphics);
-
-        if (!Has(QueueTypeFlagBits::Compute) && familyProperties.queueFlags & vk::QueueFlagBits::eCompute)
-            families[familyIndex].push_back(QueueTypeFlagBits::Compute);
-
-        if (!Has(QueueTypeFlagBits::Transfer) && familyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
-            families[familyIndex].push_back(QueueTypeFlagBits::Transfer);
+        const auto transferWithoutGraphics =
+            CountFamilies(QueueType{} | QueueTypeFlagBits::Transfer | QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
+        // If not found, there is no other way than to use graphics, compute and transfer for everything.
+        if (transferWithoutGraphics == 0)
+        {
+            AddFamily(
+                QueueType{} | QueueTypeFlagBits::Transfer | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute | QueueTypeFlagBits::Present);
+            // The queues info should be valid at this point.
+            ASSUMERT(IsValid());
+        }
+        // Else use transfer which does not have graphics, but has compute.
+        else
+        {
+            AddFamily(QueueType{} | QueueTypeFlagBits::Transfer | QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
+            AddFamily(QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute | QueueTypeFlagBits::Present);
+            ASSUMERT(IsValid());
+        }
     }
-
-    if (IsValid())
-        return;
-
-    Clear();
-    /*
-    // Else we need to overlap some queues
-    //
-    // There is a guarantee that every Vulkan-capable physical device must have at least one queue family
-    // that supports both VK_QUEUE_GRAPHICS_BIT and VK_QUEUE_COMPUTE_BIT.
-    //
-    // There is also a guarantee that any queue family
-    // with VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT implicitly supports transfer operations.
-    //
-    // This still says nothing about present queue, so try to have it separate.
-    for (const auto& [familyIndex64, queueFamily] : std::views::enumerate(familiesProperties))
+    // Else we have a dedicated transfer queue.
+    else
     {
-        std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
+        AddFamily(QueueTypeFlagBits::Transfer, QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute);
 
-        if (!Has(QueueTypeFlagBits::Present) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper))
-            families[familyIndex].push_back(QueueTypeFlagBits::Present);
+        const auto computeWithoutGraphics = CountFamilies(QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
+        // If there is no compute queue without graphics, there is guaranteed to be a compute+graphics queue.
+        if (computeWithoutGraphics == 0)
+        {
+            AddFamily(QueueType{} | QueueTypeFlagBits::Compute | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Present);
+            ASSUMERT(IsValid());
+        }
 
-        if (isQueueFamilyFull(familyIndex, queueFamily))
-            continue;
-
-        constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
-        if (!Has(QueueTypeFlagBits::GraphicsComputeTransfer) && queueFamily.queueFlags & kTogetherFlags)
-            families[familyIndex].push_back(QueueTypeFlagBits::GraphicsComputeTransfer);
+        // Else use compute which does not have graphics. And then add graphics+present.
+        else
+        {
+            AddFamily(QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
+            AddFamily(QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Present);
+            ASSUMERT(IsValid());
+        }
     }
-
-    if (IsValid())
-        return;
-
-    Clear();
-
-    // Else we need to try to overlap everything into one queue
-    for (const auto& [familyIndex64, queueFamily] : std::views::enumerate(familiesProperties))
-    {
-        std::uint32_t familyIndex = static_cast<std::uint32_t>(familyIndex64);
-        constexpr vk::QueueFlags kTogetherFlags = vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer;
-        if (!Has(QueueTypeFlagBits::All) && physicalDevice.getSurfaceSupportKHR(familyIndex, *surfaceWrapper) && queueFamily.queueFlags &
-    kTogetherFlags) families[familyIndex].push_back(QueueTypeFlagBits::All);
-    }
-    */
 }
 
 QueuesInfo::QueueInfo QueuesInfo::GetQueueInfo(const QueueType requestedType) const
 {
     ASSUMERT(Has(requestedType));
 
-    for (const auto& [familyIndex, queueTypes] : families)
-        for (const auto& [queueIndex, queueType] : std::views::enumerate(queueTypes))
-            if (queueType & requestedType)
-                return {familyIndex, static_cast<std::uint32_t>(familyIndex)};
+    for (const auto& [familyIndex, queueType] : families)
+        if (queueType & requestedType)
+            return {familyIndex, 0};
 
     throw std::logic_error("This must be called only when the queue type is contained");
     return QueueInfo{};
@@ -235,14 +245,8 @@ std::string QueuesInfo::ToString() const
 
     std::stringstream ss;
     ss << "Queues info: [";
-    for (const auto& [familyIndex, queueTypes] : families)
-    {
-        ss << std::format("Family index: {}, queue count: {}, queue types: [", familyIndex, queueTypes.size());
-        // TODO C++26: enum reflection
-        for (QueueType qt : queueTypes)
-            ss << static_cast<int>(static_cast<unsigned char>(qt)) << ", ";
-        ss << "], ";
-    }
+    for (const auto& [familyIndex, queueType] : families)
+        ss << std::format("Family index: {}, queueType: {}", familyIndex, static_cast<int>(static_cast<unsigned char>(queueType)));
 
     ss << "]";
     return ss.str();
@@ -260,7 +264,7 @@ std::vector<vk::DeviceQueueCreateInfo> QueuesInfo::GetDeviceQueueCreateInfos() c
         infos.emplace_back(
             vk::DeviceQueueCreateInfo{
                 .queueFamilyIndex = familyIndex,
-                .queueCount = static_cast<uint32_t>(queueTypes.size()),
+                .queueCount = 1,
                 .pQueuePriorities = priorities.data(),
             });
 
@@ -274,10 +278,9 @@ void QueuesInfo::Clear() noexcept
 
 bool QueuesInfo::Has(const QueueType requestedType) const noexcept
 {
-    for (const auto& [familyIndex, queueTypes] : families)
-        for (QueueType qt : queueTypes)
-            if (qt & requestedType)
-                return true;
+    for (const auto& [familyIndex, queueType] : families)
+        if (queueType & requestedType)
+            return true;
 
     return false;
 }
