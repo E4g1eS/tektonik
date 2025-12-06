@@ -75,4 +75,7 @@ concept RangeOfConstructible = std::ranges::range<RangeType> && requires(RangeTy
 export template <typename T>
 concept Numeric = std::is_floating_point_v<T> || std::is_integral_v<T>;
 
+export template <typename T>
+concept Enum = std::is_enum_v<T>;
+
 }  // namespace tektonik::concepts

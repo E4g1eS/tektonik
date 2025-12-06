@@ -9,6 +9,7 @@ import std;
 import config;
 import concepts;
 import assert;
+import util;
 
 namespace tektonik::renderer
 {
@@ -49,7 +50,7 @@ enum class QueueTypeFlagBits : std::uint8_t
     Transfer = 1 << 3,
 };
 
-using QueueType = vk::Flags<QueueTypeFlagBits>;
+using QueueType = util::Flags<QueueTypeFlagBits>;
 
 class QueuesInfo
 {

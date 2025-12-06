@@ -39,6 +39,51 @@ export void MoveDelete(auto& object)
     auto temporary = std::move(object);
 }
 
+template <concepts::Enum EnumType>
+class Flags
+{
+  public:
+    using Underlying = std::underlying_type_t<EnumType>;
+
+    constexpr Flags() = default;
+    constexpr Flags(EnumType e) : bits(ToBit(e)) {}
+    constexpr explicit Flags(Underlying bits) : bits(bits) {}
+
+    constexpr bool IsSet(EnumType e) const { return (bits & ToBit(e)) != 0; }
+    constexpr void Set(EnumType e) { bits |= ToBit(e); }
+    constexpr void Reset(EnumType e) { bits &= ~ToBit(e); }
+
+    // Bitwise operators between Flags
+    constexpr Flags operator|(const Flags& other) const { return Flags{bits | other.bits}; }
+    constexpr Flags operator&(const Flags& other) const { return Flags{bits & other.bits}; }
+    constexpr Flags operator^(const Flags& other) const { return Flags{bits ^ other.bits}; }
+
+    // Compound assignment
+    constexpr Flags& operator|=(const Flags& other)
+    {
+        bits |= other.bits;
+        return *this;
+    }
+    constexpr Flags& operator&=(const Flags& other)
+    {
+        bits &= other.bits;
+        return *this;
+    }
+    constexpr Flags& operator^=(const Flags& other)
+    {
+        bits ^= other.bits;
+        return *this;
+    }
+
+    // Single operand operators
+    constexpr Flags operator~() const { return Flags{~bits}; }
+
+  private:
+    static constexpr Underlying ToBit(EnumType e) { return static_cast<Underlying>(e); }
+
+    Underlying bits{};
+};
+
 namespace ranges
 {
 
