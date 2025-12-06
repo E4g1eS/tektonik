@@ -3,13 +3,13 @@ module;
 #include "sdl-wrapper.hpp"
 export module renderer;
 
+import util;
 import vulkan_hpp;
 import vulkan_util;
 import std;
 import config;
 import concepts;
 import assert;
-import util;
 
 namespace tektonik::renderer
 {
@@ -44,10 +44,10 @@ class SwapchainWrapper
 
 enum class QueueTypeFlagBits : std::uint8_t
 {
-    Present = 1 << 0,
-    Graphics = 1 << 1,
-    Compute = 1 << 2,
-    Transfer = 1 << 3,
+    Present = 1 << 0,   // 1
+    Graphics = 1 << 1,  // 2
+    Compute = 1 << 2,   // 4
+    Transfer = 1 << 3,  // 8
 };
 
 using QueueType = util::Flags<QueueTypeFlagBits>;

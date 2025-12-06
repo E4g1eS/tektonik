@@ -39,7 +39,7 @@ export void MoveDelete(auto& object)
     auto temporary = std::move(object);
 }
 
-template <concepts::Enum EnumType>
+export template <concepts::Enum EnumType>
 class Flags
 {
   public:
@@ -54,9 +54,9 @@ class Flags
     constexpr void Reset(EnumType e) { bits &= ~ToBit(e); }
 
     // Bitwise operators between Flags
-    constexpr Flags operator|(const Flags& other) const { return Flags{bits | other.bits}; }
-    constexpr Flags operator&(const Flags& other) const { return Flags{bits & other.bits}; }
-    constexpr Flags operator^(const Flags& other) const { return Flags{bits ^ other.bits}; }
+    constexpr Flags operator|(const Flags& other) const { return Flags{static_cast<Underlying>(bits | other.bits)}; }
+    constexpr Flags operator&(const Flags& other) const { return Flags{static_cast<Underlying>(bits & other.bits)}; }
+    constexpr Flags operator^(const Flags& other) const { return Flags{static_cast<Underlying>(bits ^ other.bits)}; }
 
     // Compound assignment
     constexpr Flags& operator|=(const Flags& other)
@@ -76,12 +76,20 @@ class Flags
     }
 
     // Single operand operators
-    constexpr Flags operator~() const { return Flags{~bits}; }
+    constexpr Flags operator~() const { return Flags{static_cast<Underlying>(~bits)}; }
+
+    // Comparison
+    constexpr bool operator==(const Flags& other) const { return bits == other.bits; }
+    constexpr bool operator!=(const Flags& other) const { return !(*this == other); }
+
+    constexpr explicit operator bool() const { return bits != 0; }
+
+    Underlying GetUnderlying() const { return bits; }
 
   private:
     static constexpr Underlying ToBit(EnumType e) { return static_cast<Underlying>(e); }
 
-    Underlying bits{};
+    Underlying bits{0};
 };
 
 namespace ranges

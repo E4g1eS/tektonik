@@ -142,21 +142,29 @@ QueuesInfo::QueuesInfo(
     for (const auto& [familyIndex, familyProperties] : std::views::enumerate(familiesProperties))
         familiesCapabilities.emplace_back(GetFamilyCapabilities(familyIndex, familyProperties));
 
-    // Searches for queue types in the families. Returns count of families that have the searched for type.
-    const auto CountFamilies = [&](const QueueType mustHave, const QueueType mustNotHave = QueueType{}) -> std::size_t
+    constexpr auto CheckType = [](const QueueType checkedType, const QueueType mustHaveAll, const QueueType mustNotHaveAny) -> bool
     {
-        return std::ranges::count_if(
-            familiesCapabilities,
-            [&](const QueueType familyCapabilities) { return (familyCapabilities & mustHave) && (familyCapabilities & ~mustNotHave); });
+        const bool mustHaveAllOk = (checkedType & mustHaveAll) == mustHaveAll;
+        const bool mustNotHaveAnyOk = !static_cast<bool>(checkedType & mustNotHaveAny);
+        return mustHaveAllOk && mustNotHaveAnyOk;
     };
 
-    const auto AddFamily = [&](const QueueType mustHave, const QueueType mustNotHave = QueueType{}) -> void
+    // Searches for queue types in the families. Returns count of families that have the searched for type.
+    const auto CountFamilies = [&](const QueueType mustHaveAll, const QueueType mustNotHaveAny = QueueType{}) -> std::size_t
+    {
+        return std::ranges::count_if(
+            familiesCapabilities, [&](const QueueType familyCapabilities) { return CheckType(familyCapabilities, mustHaveAll, mustNotHaveAny); });
+    };
+
+    const auto AddFamily = [&](const QueueType mustHaveAll, const QueueType mustNotHaveAny = QueueType{}) -> void
     {
         for (const auto& [familyIndex, familyCapabilities] : std::views::enumerate(familiesCapabilities))
-            if ((familyCapabilities & mustHave) && (familyCapabilities & ~mustNotHave))
+            if (CheckType(familyCapabilities, mustHaveAll, mustNotHaveAny))
             {
                 ASSUMERT(!families.contains(static_cast<std::uint32_t>(familyIndex)));
-                families[static_cast<std::uint32_t>(familyIndex)] = mustHave;
+                families[static_cast<std::uint32_t>(familyIndex)] = mustHaveAll;
+                Singleton<Logger>::Get().Log<LogLevel::Debug>(
+                    std::format("Assigned queue family index {} to queue type {}", familyIndex, static_cast<int>(mustHaveAll.GetUnderlying())));
                 return;
             }
 
@@ -187,15 +195,12 @@ QueuesInfo::QueuesInfo(
         {
             AddFamily(
                 QueueType{} | QueueTypeFlagBits::Transfer | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute | QueueTypeFlagBits::Present);
-            // The queues info should be valid at this point.
-            ASSUMERT(IsValid());
         }
         // Else use transfer which does not have graphics, but has compute.
         else
         {
             AddFamily(QueueType{} | QueueTypeFlagBits::Transfer | QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
             AddFamily(QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute | QueueTypeFlagBits::Present);
-            ASSUMERT(IsValid());
         }
     }
     // Else we have a dedicated transfer queue.
@@ -208,15 +213,12 @@ QueuesInfo::QueuesInfo(
         if (computeWithoutGraphics == 0)
         {
             AddFamily(QueueType{} | QueueTypeFlagBits::Compute | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Present);
-            ASSUMERT(IsValid());
         }
-
         // Else use compute which does not have graphics. And then add graphics+present.
         else
         {
             AddFamily(QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
             AddFamily(QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Present);
-            ASSUMERT(IsValid());
         }
     }
 }
@@ -235,18 +237,21 @@ QueuesInfo::QueueInfo QueuesInfo::GetQueueInfo(const QueueType requestedType) co
 
 bool QueuesInfo::IsValid() const noexcept
 {
-    return Has(QueueTypeFlagBits::Present) && Has(QueueTypeFlagBits::Graphics) && Has(QueueTypeFlagBits::Compute) && Has(QueueTypeFlagBits::Transfer);
+    const bool valid =
+        Has(QueueTypeFlagBits::Present) && Has(QueueTypeFlagBits::Graphics) && Has(QueueTypeFlagBits::Compute) && Has(QueueTypeFlagBits::Transfer);
+
+    if (!valid)
+        Singleton<Logger>::Get().Log(ToString());
+
+    return valid;
 }
 
 std::string QueuesInfo::ToString() const
 {
-    if (!IsValid())
-        return "Invalid QueueFamiliesInfo";
-
     std::stringstream ss;
     ss << "Queues info: [";
     for (const auto& [familyIndex, queueType] : families)
-        ss << std::format("Family index: {}, queueType: {}", familyIndex, static_cast<int>(static_cast<unsigned char>(queueType)));
+        ss << std::format("[Family index: {}, queueType: {}], ", familyIndex, static_cast<int>(queueType.GetUnderlying()));
 
     ss << "]";
     return ss.str();
