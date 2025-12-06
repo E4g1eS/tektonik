@@ -105,7 +105,7 @@ class PhysicalDeviceCandidate
     QueuesInfo queuesInfo{};
 };
 
-/// Members that are invariant during all of rendering (except swapchain recreation).
+/// Members that are invariant during all of rendering.
 class VulkanInvariants
 {
   public:
