@@ -74,14 +74,17 @@ class QueuesInfo
     std::string ToString() const;
     std::vector<vk::DeviceQueueCreateInfo> GetDeviceQueueCreateInfos() const;
 
+    bool HasDedicatedTransferQueue() const noexcept { return hasDedicatedTransferQueue; }
+    bool HasDedicatedComputeQueue() const noexcept { return hasDedicatedComputeQueue; }
+
   private:
-    /// Clears all stored queue family infos.
-    void Clear() noexcept;
     /// Checks whether this already contains the requested queue type.
     bool Has(QueueType requestedType) const noexcept;
     /// Maps queue family indexes to the queue type actually used.
     /// At most one queue per family is used.
     std::unordered_map<std::uint32_t, QueueType> families{};
+    bool hasDedicatedTransferQueue = false;
+    bool hasDedicatedComputeQueue = false;
 };
 
 /// A wrapper that holds information about a physical device candidate for comparing and choosing the best one.
@@ -121,13 +124,13 @@ class VulkanInvariants
     // Different types of queues
     struct Queues
     {
-        vk::raii::Queue present{nullptr};
+        // Also present queue.
         vk::raii::Queue graphics{nullptr};
         vk::raii::Queue compute{nullptr};
         vk::raii::Queue transfer{nullptr};
 
-        bool graphicsComputeTransferTogether = false;
-        bool allTogether = false;
+        bool dedicatedTransfer = false;
+        bool dedicatedCompute = false;
     } queues{};
 
     vk::raii::CommandPool commandPool{nullptr};

@@ -107,13 +107,9 @@ VulkanInvariants::Queues VulkanInvariants::RetrieveQueues()
     };
 
     return Queues{
-        .present = retrieveQueue(QueueTypeFlagBits::Present),
         .graphics = retrieveQueue(QueueTypeFlagBits::Graphics),
         .compute = retrieveQueue(QueueTypeFlagBits::Compute),
         .transfer = retrieveQueue(QueueTypeFlagBits::Transfer),
-        // Cache this
-        //.graphicsComputeTransferTogether = queuesInfo.AreGraphicsComputeTransferTogether(),
-        //.allTogether = queuesInfo.AreAllTogether(),
     };
 }
 
@@ -201,12 +197,14 @@ QueuesInfo::QueuesInfo(
         {
             AddFamily(QueueType{} | QueueTypeFlagBits::Transfer | QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
             AddFamily(QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute | QueueTypeFlagBits::Present);
+            hasDedicatedTransferQueue = true;
         }
     }
     // Else we have a dedicated transfer queue.
     else
     {
         AddFamily(QueueTypeFlagBits::Transfer, QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Compute);
+        hasDedicatedTransferQueue = true;
 
         const auto computeWithoutGraphics = CountFamilies(QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
         // If there is no compute queue without graphics, there is guaranteed to be a compute+graphics queue.
@@ -219,6 +217,7 @@ QueuesInfo::QueuesInfo(
         {
             AddFamily(QueueTypeFlagBits::Compute, QueueTypeFlagBits::Graphics);
             AddFamily(QueueType{} | QueueTypeFlagBits::Graphics | QueueTypeFlagBits::Present);
+            hasDedicatedComputeQueue = true;
         }
     }
 }
@@ -274,11 +273,6 @@ std::vector<vk::DeviceQueueCreateInfo> QueuesInfo::GetDeviceQueueCreateInfos() c
             });
 
     return infos;
-}
-
-void QueuesInfo::Clear() noexcept
-{
-    families.clear();
 }
 
 bool QueuesInfo::Has(const QueueType requestedType) const noexcept
