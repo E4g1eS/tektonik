@@ -1,7 +1,4 @@
 module;
-// Needed for VK_MAKE_VERSION macros
-#include <vulkan/vulkan.h>
-
 #include "common-defines.hpp"
 #include "sdl-wrapper.hpp"
 module renderer;
@@ -11,6 +8,7 @@ import singleton;
 import logger;
 import string_enum;
 import assert;
+import vulkan_version;
 
 namespace tektonik::renderer
 {
@@ -34,10 +32,10 @@ vk::raii::Instance VulkanInvariants::CreateInstance()
 {
     vk::ApplicationInfo applicationInfo{
         .pApplicationName = "Renderer",
-        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+        .applicationVersion = vulkan::MakeVersion(1, 0, 0),
         .pEngineName = "",
-        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = VK_API_VERSION_1_4,
+        .engineVersion = vulkan::MakeVersion(1, 0, 0),
+        .apiVersion = vulkan::kVulkanApiVersion_1_4,
     };
 
     uint32_t extensionCount = 0;
